@@ -87,10 +87,16 @@ copy_lib() {
   local base
   base="$(basename "$src")"
 
-  # Обычные dylib кладём в Contents/Frameworks.
-  # GStreamer plugins уже лежат в Resources/spice/lib/gstreamer-1.0,
-  # поэтому их отдельно в Frameworks не дублируем.
+  # GStreamer plugins already live in Resources/spice/lib/gstreamer-1.0.
   if [[ "$src" == *"/lib/gstreamer-1.0/"* ]]; then
+    return 0
+  fi
+
+  # Do not duplicate Qt libraries.
+  # Nuitka / pyside6-deploy puts QtCore, QtGui, QtNetwork, etc. into Contents/MacOS.
+  # A second copy in Contents/Frameworks causes duplicate Objective-C classes and segfault.
+  if [[ "$base" == Qt* || "$base" == libQt* ]]; then
+    echo "SKIP QT DUPLICATE: $src"
     return 0
   fi
 
@@ -104,12 +110,7 @@ copy_lib() {
 }
 
 collect_macho_files() {
-  find "$APP_DIR" -type f \( \
-    -perm -111 \
-    -o -name "*.dylib" \
-    -o -name "*.so" \
-    -o -name "*.bundle" \
-  \) -print
+  find "$APP_DIR" -type f -print
 }
 
 echo "==> Collect dylib dependencies"
@@ -159,10 +160,6 @@ while IFS= read -r file_path; do
   base="$(basename "$file_path")"
   loader_dir="$(dirname "$file_path")"
 
-  # ВАЖНО:
-  # Меняем install name не только у dylib в Frameworks,
-  # но и у GStreamer plugins внутри Resources/spice/lib/gstreamer-1.0.
-  # Именно из-за этого раньше были BAD: ... still uses /opt/homebrew/...
   case "$file_path" in
     *.dylib|*.so|*.bundle)
       install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
@@ -245,6 +242,14 @@ done < <(collect_macho_files)
 
 if [ "$bad" -eq 1 ]; then
   echo "ERROR: unresolved /opt/homebrew dependencies found"
+  exit 1
+fi
+
+echo "==> Validate: no duplicated Qt in Frameworks"
+
+if find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \) | grep -q .; then
+  echo "ERROR: duplicated Qt libraries found in Contents/Frameworks"
+  find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \)
   exit 1
 fi
 

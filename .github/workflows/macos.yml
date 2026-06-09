@@ -37,7 +37,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+
           brew update
+
           brew install \
             python@3.13 \
             krb5 \
@@ -62,6 +64,9 @@ jobs:
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
 
+          /opt/homebrew/bin/python3 -m pip install pyparsing
+          /opt/homebrew/bin/python3 -c "import pyparsing; print('pyparsing OK')"
+
       - name: Python venv
         shell: bash
         run: |
@@ -73,7 +78,6 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pyparsing krb5 nuitka ordered-set zstandard imageio
-          /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing || \
 
           python --version
           pip --version
@@ -133,13 +137,11 @@ jobs:
         run: |
           set -euxo pipefail
 
-          mkdir -p ci/macos
           chmod +x ci/macos/build_pkg.sh
           chmod +x ci/macos/bundle_dylibs.sh
           chmod +x ci/macos/postinstall
 
           ci/macos/build_pkg.sh
-
 
       - name: Verify PKG
         shell: bash

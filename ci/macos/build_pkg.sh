@@ -16,13 +16,6 @@ RESOURCES_DIR="$APP_DST/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
 FRAMEWORKS_DST="$APP_DST/Contents/Frameworks"
 
-echo "==> Root dir: $ROOT_DIR"
-echo "==> App name: $APP_NAME"
-echo "==> App bundle: $APP_BUNDLE"
-echo "==> App version: $APP_VERSION"
-echo "==> Package identifier: $PKG_IDENTIFIER"
-echo "==> macOS minimum: $DEPLOY_TARGET"
-
 echo "==> Clean old build"
 rm -rf "$ROOT_DIR/build"
 
@@ -31,20 +24,6 @@ mkdir -p "$PAYLOAD_DIR/Applications"
 mkdir -p "$SPICE_DST"
 mkdir -p "$FRAMEWORKS_DST"
 
-echo "==> Check source app bundle"
-if [ ! -d "dist/$APP_BUNDLE" ]; then
-  echo "ERROR: dist/$APP_BUNDLE not found"
-  echo "dist content:"
-  find dist -maxdepth 4 -type f -o -type d 2>/dev/null || true
-  exit 1
-fi
-
-if [ ! -x "dist/$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]; then
-  echo "ERROR: dist/$APP_BUNDLE/Contents/MacOS/$APP_NAME not executable or not found"
-  find "dist/$APP_BUNDLE/Contents/MacOS" -maxdepth 3 -type f 2>/dev/null || true
-  exit 1
-fi
-
 echo "==> Copy app bundle"
 cp -a "dist/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
 
@@ -52,30 +31,27 @@ test -d "$APP_DST"
 test -x "$APP_DST/Contents/MacOS/$APP_NAME"
 
 echo "==> Copy built SPICE files"
+
 if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
   echo "ERROR: spice-full/build/spice/opt/homebrew not found"
-  echo "Available spice build dirs:"
-  find spice-full/build/spice -maxdepth 6 -type d 2>/dev/null || true
+  find spice-full/build/spice -maxdepth 5 -type d 2>/dev/null || true
   exit 1
 fi
 
 rsync -a "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
 
 echo "==> Copy GStreamer runtime from runner"
+
 mkdir -p "$SPICE_DST/lib/gstreamer-1.0"
 mkdir -p "$SPICE_DST/libexec/gstreamer-1.0"
 mkdir -p "$SPICE_DST/share"
 
 if [ -d "/opt/homebrew/lib/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/lib/gstreamer-1.0/" "$SPICE_DST/lib/gstreamer-1.0/"
-else
-  echo "WARN: /opt/homebrew/lib/gstreamer-1.0 not found"
 fi
 
 if [ -d "/opt/homebrew/libexec/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/libexec/gstreamer-1.0/" "$SPICE_DST/libexec/gstreamer-1.0/"
-else
-  echo "WARN: /opt/homebrew/libexec/gstreamer-1.0 not found"
 fi
 
 for src in \
@@ -93,7 +69,24 @@ done
 echo "==> Bundle dylib dependencies from runner"
 ci/macos/bundle_dylibs.sh "$APP_DST"
 
+echo "==> Remove duplicated Qt libraries from Frameworks"
+
+# pyside6-deploy / Nuitka already places Qt libs into Contents/MacOS.
+# Do not keep second Qt copy in Contents/Frameworks.
+# Otherwise macOS loads both copies and PySide/Nuitka crashes.
+rm -f "$APP_DST/Contents/Frameworks"/Qt* || true
+rm -f "$APP_DST/Contents/Frameworks"/libQt* || true
+
+echo "==> Check for duplicated Qt libraries"
+
+if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \) | grep -q .; then
+  echo "ERROR: duplicated Qt libraries found in Contents/Frameworks"
+  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \)
+  exit 1
+fi
+
 echo "==> Create launcher wrapper"
+
 BIN="$APP_DST/Contents/MacOS/$APP_NAME"
 REAL_BIN="$APP_DST/Contents/MacOS/${APP_NAME}.real"
 
@@ -125,45 +118,66 @@ EOF
 fi
 
 echo "==> Patch Info.plist"
-PLIST="$APP_DST/Contents/Info.plist"
 
-if [ ! -f "$PLIST" ]; then
-  echo "ERROR: Info.plist not found: $PLIST"
-  exit 1
-fi
+PLIST="$APP_DST/Contents/Info.plist"
 
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $DEPLOY_TARGET" "$PLIST" 2>/dev/null || \
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $DEPLOY_TARGET" "$PLIST"
 
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || \
-/usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $APP_VERSION" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || true
 
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || \
-/usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $APP_VERSION" "$PLIST" 2>/dev/null || true
+echo "==> Permissions and xattrs"
 
-echo "==> Permissions"
-# xattr иногда пишет No such file на симлинках/гонках внутри больших деревьев.
-# Это не должно валить сборку.
-xattr -cr "$APP_DST" || true
-
+chmod -R u+w "$APP_DST" || true
 chmod -R a+rX "$APP_DST"
 chmod +x "$APP_DST/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
 
+find "$APP_DST" -type f -exec xattr -c {} + 2>/dev/null || true
+find "$APP_DST" -type d -exec xattr -c {} + 2>/dev/null || true
+
+echo "==> Ad-hoc sign all Mach-O files"
+
+find "$APP_DST" -type f -print0 | while IFS= read -r -d '' file_path; do
+  if file "$file_path" | grep -q "Mach-O"; then
+    echo "SIGN: $file_path"
+    chmod u+w "$file_path" || true
+    codesign --remove-signature "$file_path" 2>/dev/null || true
+    codesign --force --sign - --timestamp=none "$file_path"
+  fi
+done
+
+echo "==> Ad-hoc sign app bundle"
+
+codesign --remove-signature "$APP_DST" 2>/dev/null || true
+codesign --force --deep --sign - --timestamp=none "$APP_DST"
+
+echo "==> Verify ad-hoc signature"
+
+codesign --verify --deep --strict --verbose=4 "$APP_DST"
+
+echo "==> Check no duplicated Qt in Frameworks"
+
+if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \) | grep -q .; then
+  echo "ERROR: duplicated Qt libraries appeared after signing"
+  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \)
+  exit 1
+fi
+
 echo "==> Check final app structure"
+
 find "$APP_DST" -maxdepth 4 -type f | sort | head -300
 
 echo "==> Analyze component"
-pkgbuild --analyze \
-  --root "$PAYLOAD_DIR" \
-  "$ROOT_DIR/build/component.plist"
 
-if [ -f "$ROOT_DIR/build/component.plist" ]; then
-  /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
-fi
+pkgbuild --analyze "$PAYLOAD_DIR" "$ROOT_DIR/build/component.plist"
+
+/usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
 
 echo "==> Build component.pkg"
+
 pkgbuild \
   --root "$PAYLOAD_DIR" \
   --component-plist "$ROOT_DIR/build/component.plist" \
@@ -174,6 +188,7 @@ pkgbuild \
   "$ROOT_DIR/build/component.pkg"
 
 echo "==> Create product requirements"
+
 cat > "$ROOT_DIR/build/product-requirements.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -189,6 +204,7 @@ cat > "$ROOT_DIR/build/product-requirements.plist" <<EOF
 EOF
 
 echo "==> Build final unsigned PKG"
+
 FINAL_PKG="$ROOT_DIR/build/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
 
 productbuild \
@@ -197,5 +213,5 @@ productbuild \
   "$FINAL_PKG"
 
 echo "==> Done"
-ls -lh "$ROOT_DIR/build/component.pkg"
+
 ls -lh "$FINAL_PKG"
