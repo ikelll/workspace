@@ -41,10 +41,12 @@ resolve_lib() {
     local name="${lib#@rpath/}"
 
     for base in \
+      "$APP_BIN_DIR" \
       "$FRAMEWORKS_DIR" \
       "$SPICE_DIR/lib" \
       "$SPICE_DIR/lib/gstreamer-1.0" \
       "/opt/homebrew/lib" \
+      "/opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13" \
       "/opt/homebrew/opt/gstreamer/lib" \
       "/opt/homebrew/opt/gstreamer/lib/gstreamer-1.0" \
       "/opt/homebrew/opt/gst-plugins-base/lib" \
@@ -87,16 +89,17 @@ copy_lib() {
   local base
   base="$(basename "$src")"
 
-  # GStreamer plugins already live in Resources/spice/lib/gstreamer-1.0.
   if [[ "$src" == *"/lib/gstreamer-1.0/"* ]]; then
     return 0
   fi
 
-  # Do not duplicate Qt libraries.
-  # Nuitka / pyside6-deploy puts QtCore, QtGui, QtNetwork, etc. into Contents/MacOS.
-  # A second copy in Contents/Frameworks causes duplicate Objective-C classes and segfault.
   if [[ "$base" == Qt* || "$base" == libQt* ]]; then
     echo "SKIP QT DUPLICATE: $src"
+    return 0
+  fi
+
+  if [[ "$base" == Python || "$base" == libpython* ]]; then
+    echo "SKIP PYTHON DUPLICATE: $src"
     return 0
   fi
 
@@ -111,6 +114,26 @@ copy_lib() {
 
 collect_macho_files() {
   find "$APP_DIR" -type f -print
+}
+
+rewrite_dep_to_local() {
+  local file_path="$1"
+  local dep="$2"
+
+  local dep_base
+  dep_base="$(basename "$dep")"
+
+  if [ -f "$APP_BIN_DIR/$dep_base" ]; then
+    install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
+  elif [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
+    install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
+  elif [ -f "$SPICE_DIR/lib/$dep_base" ]; then
+    install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
+  elif [ -f "$SPICE_DIR/lib/gstreamer-1.0/$dep_base" ]; then
+    install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
+  else
+    return 1
+  fi
 }
 
 echo "==> Collect dylib dependencies"
@@ -158,15 +181,18 @@ while IFS= read -r file_path; do
   chmod u+w "$file_path" || true
 
   base="$(basename "$file_path")"
-  loader_dir="$(dirname "$file_path")"
 
   case "$file_path" in
     *.dylib|*.so|*.bundle)
       install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
       ;;
+    "$APP_BIN_DIR"/Qt*|"$APP_BIN_DIR"/Python|"$FRAMEWORKS_DIR"/Qt*|"$FRAMEWORKS_DIR"/Python)
+      install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
+      ;;
   esac
 
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
@@ -178,19 +204,7 @@ while IFS= read -r file_path; do
     [ -n "$dep" ] || continue
     is_system_lib "$dep" && continue
 
-    resolved="$(resolve_lib "$dep" "$loader_dir")"
-
-    if [ -f "$resolved" ]; then
-      dep_base="$(basename "$resolved")"
-
-      if [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
-        install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-      elif [ -f "$SPICE_DIR/lib/$dep_base" ]; then
-        install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-      elif [ -f "$SPICE_DIR/lib/gstreamer-1.0/$dep_base" ]; then
-        install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-      fi
-    fi
+    rewrite_dep_to_local "$file_path" "$dep" || true
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
@@ -207,16 +221,8 @@ while IFS= read -r file_path; do
     [ -n "$dep" ] || continue
     is_system_lib "$dep" && continue
 
-    dep_base="$(basename "$dep")"
-
     if [[ "$dep" == /opt/homebrew/* ]]; then
-      if [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
-        install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-      elif [ -f "$SPICE_DIR/lib/$dep_base" ]; then
-        install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-      elif [ -f "$SPICE_DIR/lib/gstreamer-1.0/$dep_base" ]; then
-        install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-      else
+      if ! rewrite_dep_to_local "$file_path" "$dep"; then
         echo "WARN: cannot rewrite $dep in $file_path, local copy not found"
       fi
     fi
@@ -245,11 +251,11 @@ if [ "$bad" -eq 1 ]; then
   exit 1
 fi
 
-echo "==> Validate: no duplicated Qt in Frameworks"
+echo "==> Validate: no duplicated Qt/Python in Frameworks"
 
-if find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \) | grep -q .; then
-  echo "ERROR: duplicated Qt libraries found in Contents/Frameworks"
-  find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \)
+if find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \) | grep -q .; then
+  echo "ERROR: duplicated Qt/Python libraries found in Contents/Frameworks"
+  find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \)
   exit 1
 fi
 

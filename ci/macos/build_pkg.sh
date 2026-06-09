@@ -69,19 +69,18 @@ done
 echo "==> Bundle dylib dependencies from runner"
 ci/macos/bundle_dylibs.sh "$APP_DST"
 
-echo "==> Remove duplicated Qt libraries from Frameworks"
+echo "==> Remove duplicated Qt/Python libraries from Frameworks"
 
-# pyside6-deploy / Nuitka already places Qt libs into Contents/MacOS.
-# Do not keep second Qt copy in Contents/Frameworks.
-# Otherwise macOS loads both copies and PySide/Nuitka crashes.
 rm -f "$APP_DST/Contents/Frameworks"/Qt* || true
 rm -f "$APP_DST/Contents/Frameworks"/libQt* || true
+rm -f "$APP_DST/Contents/Frameworks"/Python || true
+rm -f "$APP_DST/Contents/Frameworks"/libpython* || true
 
-echo "==> Check for duplicated Qt libraries"
+echo "==> Check for duplicated Qt/Python libraries"
 
-if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \) | grep -q .; then
-  echo "ERROR: duplicated Qt libraries found in Contents/Frameworks"
-  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \)
+if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \) | grep -q .; then
+  echo "ERROR: duplicated Qt/Python libraries found in Contents/Frameworks"
+  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \)
   exit 1
 fi
 
@@ -157,11 +156,20 @@ echo "==> Verify ad-hoc signature"
 
 codesign --verify --deep --strict --verbose=4 "$APP_DST"
 
-echo "==> Check no duplicated Qt in Frameworks"
+echo "==> Check no duplicated Qt/Python in Frameworks"
 
-if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \) | grep -q .; then
-  echo "ERROR: duplicated Qt libraries appeared after signing"
-  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" \)
+if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \) | grep -q .; then
+  echo "ERROR: duplicated Qt/Python libraries appeared after signing"
+  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \)
+  exit 1
+fi
+
+echo "==> Check no /opt/homebrew refs after cleanup"
+
+if find "$APP_DST" -type f -print0 | xargs -0 file 2>/dev/null | grep "Mach-O" | cut -d: -f1 | while read -r macho; do
+  otool -L "$macho" 2>/dev/null | grep "/opt/homebrew" && echo "BAD_FILE=$macho"
+done | grep -q "/opt/homebrew"; then
+  echo "ERROR: unresolved /opt/homebrew references remained"
   exit 1
 fi
 
