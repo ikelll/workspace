@@ -1,0 +1,303 @@
+QStackedWidget#stackedWidgetLogin {
+    background-color: rgba(15, 23, 42, 0.92);
+}
+
+QWidget#pageMain {
+    background: #020617;                   
+    background-repeat: no-repeat;
+    background-position: right center;                        
+}
+
+QWidget#pageLoad {
+    background-color: #020617;               
+    background-repeat: no-repeat;
+    background-position: right center;
+}
+
+QLabel#lblServerTitle,
+QLabel#lblProfilesTitle,
+QLabel#lblCredsServer,
+QLabel#lblTopPartner,
+QLabel#lblHomeSectionTitle,
+QLabel#lblLoadingStatus,
+QLabel#lblSettingsSectionDescription,
+QLabel#lblSettingsStatusHint,
+QLabel#lblAppName,
+QLabel#lblDesktopName,
+QLabel#lblDesktopTransport,
+QLabel#lblDesktopSubtitle {
+    color: #E5E7EB;
+}
+
+QLabel#lblHomeTitle,
+QLabel#lblAppsTitle,
+QLabel#lblDesktopsTitle,
+QLabel#lblSettingsTitle {
+    color: #E5E7EB;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+QLabel#lblSettingsSectionTitle {
+    color: #E5E7EB;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+QLineEdit#leServerUrl,
+QLineEdit#leCredsUser,
+QLineEdit#leCredsPass,
+QLineEdit#leProfilePass,
+QLineEdit#leWorkspaceSearch {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #334155;
+    color: #E5E7EB;
+}
+
+QLineEdit#leServerUrl:focus,
+QLineEdit#leCredsUser:focus,
+QLineEdit#leCredsPass:focus,
+QLineEdit#leProfilePass:focus,
+QLineEdit#leWorkspaceSearch:focus {
+    border: 1px solid #38BDF8;
+}
+
+QLineEdit:disabled {
+    background: #111827;
+    color: #64748B;
+}
+
+QPushButton#btnLoginLanguage,
+QPushButton#btnLoginThemeToggle {
+    background: rgba(15, 23, 42, 0.92);
+    color: #E5E7EB;
+    border: 1px solid #334155;
+}
+
+QPushButton#btnLoginLanguage:hover,
+QPushButton#btnLoginThemeToggle:hover {
+    background: #111827;
+    border-color: #475569;
+}
+
+QPushButton#btnBackToProfiles,
+QPushButton#btnCredsBack,
+QPushButton#btnSwitchAccount,
+QPushButton#btnAddProfile {
+    color: #38BDF8;
+}
+
+QLabel#lblServerErrorBanner[hasError="true"],
+QLabel#lblCredsErrorBanner[hasError="true"],
+QLabel#lblPwErrorBanner[hasError="true"] {
+    color: #FCA5A5;
+    background: rgba(127, 29, 29, 0.28);
+    border: 1px solid #7F1D1D;
+}
+
+QFrame#frameTopBar,
+QFrame#frameSidebar,
+QFrame#frameAppsHeader,
+QFrame#frameDesktopsHeader,
+QFrame#frameHomeHeader,
+QFrame#frameSettingsPage,
+QFrame#frameSettingsPanel,
+QFrame#frameSettingsStatus,
+QFrame#profileCard,
+QFrame#appCard,
+QFrame#desktopCard {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: #1E293B;
+}
+
+QFrame#frameAppsHeader,
+QFrame#frameDesktopsHeader,
+QFrame#frameHomeHeader,
+QFrame#frameSettingsPage {
+    min-height: 34px;
+}
+
+QFrame#frameHomeNav:hover,
+QFrame#frameAppsNav:hover,
+QFrame#frameDesktopsNav:hover,
+QPushButton#btnHome:hover,
+QPushButton#btnApps:hover,
+QPushButton#btnDesktops:hover {
+    background: rgba(30, 41, 59, 0.7);
+}
+
+QFrame#frameHomeNav[active="true"],
+QFrame#frameAppsNav[active="true"],
+QFrame#frameDesktopsNav[active="true"],
+QFrame#frameHomeNav[active="true"]:hover,
+QFrame#frameAppsNav[active="true"]:hover,
+QFrame#frameDesktopsNav[active="true"]:hover {
+    background: rgba(15, 35, 51, 0.9);
+}
+
+QFrame#frameHomeIndicator[active="true"],
+QFrame#frameAppsIndicator[active="true"],
+QFrame#frameDesktopsIndicator[active="true"] {
+    background: #38BDF8;
+}
+
+QPushButton#btnHome,
+QPushButton#btnApps,
+QPushButton#btnDesktops,
+QLabel#lblAppsSort,
+QLabel#lblDesktopsSort,
+QLabel#lblHomeSectionTitle,
+QLabel#lblAppsEmpty,
+QLabel#lblDesktopsEmpty,
+QLabel#lblHomeEmpty,
+QLabel#lblUsername,
+QLabel#lblDetail,
+QMenu#userAvatarMenu::item,
+QRadioButton#rbSettingsOption {
+    color: #CBD5E1;
+}
+
+QLabel#lblAppsEmpty,
+QLabel#lblDesktopsEmpty,
+QLabel#lblHomeEmpty {
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px dashed #334155;
+}
+
+QLabel#lblAppIcon,
+QLabel#lblDesktopIcon {
+    background: #0F2233;
+    color: #7DD3FC;
+}
+
+QPushButton#btnAppFavorite,
+QPushButton#btnDesktopFavorite,
+QPushButton#btnAppMenu,
+QPushButton#btnDesktopMenu,
+QPushButton#btnDeleteProfile,
+QPushButton#btnDelete {
+    color: #94A3B8;
+}
+
+QPushButton#btnAppFavorite:hover,
+QPushButton#btnDesktopFavorite:hover,
+QPushButton#btnAppMenu:hover,
+QPushButton#btnDesktopMenu:hover,
+QPushButton#btnDelete:hover,
+QPushButton#btnDeleteProfile:hover {
+    background: rgba(30, 41, 59, 0.75);
+    color: #38BDF8;
+}
+
+QMenu#userAvatarMenu {
+    background: #0F172A;
+    border: 1px solid #334155;
+}
+
+QMenu#userAvatarMenu::item:selected {
+    background: #0F2233;
+    color: #7DD3FC;
+}
+
+QMenu#userAvatarMenu::separator {
+    background: #334155;
+}
+
+QFrame#avatarDropdownCard {
+    background: rgba(15, 23, 42, 0.99);
+    border: 1px solid #334155;
+    border-radius: 18px;
+}
+
+QLabel#lblAvatarDropdownTitle {
+    color: #E5E7EB;
+    font-size: 16px;
+    font-weight: 700;
+    background: transparent;
+}
+
+QLabel#lblAvatarDropdownSubtitle {
+    color: #94A3B8;
+    font-size: 12px;
+    font-weight: 500;
+    background: transparent;
+    padding-bottom: 2px;
+}
+
+QLabel#lblAvatarDropdownLanguage,
+QLabel#lblAvatarDropdownTheme {
+    color: #94A3B8;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+}
+
+QPushButton#btnAvatarDropdownAction,
+QPushButton#btnAvatarDropdownDanger {
+    min-height: 40px;
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QPushButton#btnAvatarDropdownAction {
+    background: rgba(15, 35, 51, 0.95);
+    border: 1px solid #334155;
+    color: #7DD3FC;
+}
+
+QPushButton#btnAvatarDropdownAction:hover {
+    background: rgba(20, 48, 69, 0.98);
+    border-color: #475569;
+}
+
+QPushButton#btnAvatarDropdownDanger {
+    background: rgba(127, 29, 29, 0.18);
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    color: #FCA5A5;
+}
+
+QPushButton#btnAvatarDropdownDanger:hover {
+    background: rgba(127, 29, 29, 0.28);
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+QPushButton#btnSettingsTab {
+    color: #94A3B8;
+}
+
+QPushButton#btnSettingsTab[active="true"] {
+    color: #7DD3FC;
+    border-bottom-color: #38BDF8;
+}
+
+QRadioButton#rbSettingsOption::indicator:unchecked {
+    border: 2px solid #475569;
+    background: #0F172A;
+}
+
+QRadioButton#rbSettingsOption::indicator:checked {
+    border: 5px solid #38BDF8;
+    background: #0F172A;
+}
+
+QLabel#badgeSettingsEnabled {
+    background: rgba(21, 128, 61, 0.18);
+    color: #86EFAC;
+    border: 1px solid rgba(134, 239, 172, 0.35);
+}
+
+
+/* =============================================================
+   Refactored: dark overrides for styles moved from Python
+   ============================================================= */
+
+QLabel#lblPasswordUsername {
+    color: #E5E7EB;
+}
+
+QLabel#lblPasswordDetail {
+    color: #94A3B8;
+}

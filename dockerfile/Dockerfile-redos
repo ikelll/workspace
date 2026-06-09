@@ -1,0 +1,55 @@
+FROM tuniaka/redos8
+
+RUN dnf -y update --exclude=nvidia-gpu-firmware --setopt=tsflags=noscripts && \
+    dnf -y install meson make cmake && \
+    dnf -y install \
+        gstreamermm-devel.x86_64 \
+        gstreamer1-vaapi-devel.x86_64 \
+        gstreamer1-rtsp-server-devel.x86_64 \
+        gstreamer1-plugins-base-devel.x86_64 \
+        gstreamer1-libav.x86_64 \
+        gstreamer1-devel.x86_64 \
+        gstreamer-devel.x86_64 \
+        gstreamer.x86_64 \
+        libusb1-devel.x86_64 \
+        libacl-devel \
+        glib2-devel.x86_64 \
+        gobject-introspection-devel.x86_64 libcacard-devel.x86_64 \
+        gtk3-devel glib2-devel opus-devel libcap-ng-devel polkit-devel  libacl-devel gstreamer1-devel gstreamer1-plugins-base-devel  libphodav-devel.x86_64 gstreamer1-plugins-bad-free-devel \
+        clang \
+        gcc \
+        lz4 lz4-devel \
+        ruby \
+        rpm-build.x86_64 \
+        pixman.x86_64 \
+        pixman-devel.x86_64 \
+        openssl-devel.x86_64 \
+        libjpeg-turbo-devel.x86_64 \
+        libjpeg8.x86_64 \
+        liblzf.x86_64 \
+        liblzf-devel.x86_64 \
+        cyrus-sasl-devel \
+        json-glib-devel \
+        python3-pyparsing \
+        gettext \
+        python3-devel \
+        krb5-devel \
+        --skip-broken && \
+    dnf clean all
+
+WORKDIR /opt/build
+COPY . .
+RUN gem install fpm
+RUN python3 -m venv venv 
+RUN /opt/build/venv/bin/pip install -U pip setuptools wheel
+RUN /opt/build/venv/bin/pip install -r requirements.txt
+RUN /opt/build/venv/bin/pip install pyparsing PySide6 Nuitka ordered-set zstandard pyspnego krb5
+
+RUN /opt/build/venv/bin/python --version
+RUN /opt/build/venv/bin/pip list
+ENV PATH="/opt/build/venv/bin:$PATH"
+ENV VIRTUAL_ENV="/opt/build/venv"
+RUN chmod +x rebuild.sh
+RUN ./rebuild.sh
+RUN mkdir dist-linux
+RUN mkdir /opt/spice

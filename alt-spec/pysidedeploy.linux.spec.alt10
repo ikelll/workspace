@@ -1,0 +1,29 @@
+[app]
+title = Gorizont-VS_VDI_Workspace
+project_dir = .
+input_file = GorizontVS-VDI.py
+#project_file = pyproject.toml
+exec_directory = .
+icon = resources/static/app.ico
+
+[python]
+python_path = /opt/venv/bin/python3
+packages = nuitka,ordered_set,zstandard,patchelf
+
+[qt]
+modules = Core,DBus,Gui,Svg,SvgWidgets,Widgets
+plugins = iconengines,imageformats,platforminputcontexts,styles,tls
+qml_files = 
+
+[nuitka]
+mode = onefile
+extra_args = 
+        --quiet
+        --noinclude-qt-translations
+        --include-package=gssapi
+        --include-package=krb5
+        --include-package=spnego
+        --include-qt-plugins=tls
+        --noinclude-dlls=libssl.so*
+        --noinclude-dlls=libcrypto.so*
+

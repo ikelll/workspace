@@ -1,0 +1,5 @@
+[project]
+name = "TempProj"
+
+[tool.pyside6-project]
+files = ["GorizontVS-VDI.py", "resources/resource.qrc", "ui/form.ui", "ui/app_card.ui", "ui/confirm_dialog.ui", "ui/desktop_card.ui", "ui/profile_card.ui", "i18n/ru_RU.ts", "i18n/en_US.ts"]

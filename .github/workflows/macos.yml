@@ -1,0 +1,163 @@
+name: Build macOS PKG
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  APP_NAME: GorizontVS-VDI
+  APP_BUNDLE: GorizontVS-VDI.app
+  APP_VERSION: "1.8"
+  PKG_IDENTIFIER: ru.gorizont.vdi
+  MACOSX_DEPLOYMENT_TARGET: "14.0"
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
+jobs:
+  build-pkg:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Runner info
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sw_vers
+          uname -a
+          arch
+          which pkgbuild
+          which productbuild
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          brew update
+
+          brew install \
+            python@3.13 \
+            krb5 \
+            gstreamer \
+            gst-plugins-base \
+            gst-plugins-good \
+            gst-plugins-bad \
+            gst-libav \
+            glib \
+            pixman \
+            meson \
+            ninja \
+            phodav \
+            opus \
+            jpeg-turbo \
+            openssl@3 \
+            libusb \
+            gettext \
+            cyrus-sasl \
+            pkg-config
+
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
+
+      - name: Python venv
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          /opt/homebrew/bin/python3.13 -m venv venv
+          source venv/bin/activate
+
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyparsing krb5 nuitka ordered-set zstandard imageio
+
+          python --version
+          pip --version
+
+      - name: Build SPICE
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          source venv/bin/activate
+
+          rm -rf spice-full
+          unzip spice-full.zip
+
+          cp makefiles/Makefile spice-full/Makefile
+          cp makefiles/meson.build-gtk-tools spice-full/spice-gtk/tools/meson.build
+          cp makefiles/spicy.c spice-full/spice-gtk/tools/spicy.c
+
+          cd spice-full
+
+          export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+          export PKG_CONFIG_PATH="/opt/homebrew/opt/cyrus-sasl/lib/pkgconfig:/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+          export CPPFLAGS="-I/opt/homebrew/include"
+          export LDFLAGS="-L/opt/homebrew/lib"
+          export MACOSX_DEPLOYMENT_TARGET="14.0"
+
+          pkg-config --modversion libsasl2
+          pkg-config --libs libsasl2
+
+          mkdir -p build/spice/usr/share/locale/ru/LC_MESSAGES
+
+          make
+
+      - name: Build client app
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          source venv/bin/activate
+
+          export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+          export MACOSX_DEPLOYMENT_TARGET="14.0"
+
+          ./rebuild.sh
+
+          rm -rf dist
+          mkdir -p dist
+
+          pyside6-deploy -c pysidedeploy.mac.spec
+
+          test -d "dist/GorizontVS-VDI.app"
+          test -x "dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI"
+
+      - name: Create PKG from scratch
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          mkdir -p ci/macos
+          chmod +x ci/macos/build_pkg.sh
+          chmod +x ci/macos/bundle_dylibs.sh
+          chmod +x ci/macos/postinstall
+
+          ci/macos/build_pkg.sh
+
+      - name: Verify PKG
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          ls -lh build/*.pkg
+
+          pkgutil --payload-files build/component.pkg | head -300
+
+          mkdir -p /tmp/pkg-expand
+          rm -rf /tmp/pkg-expand/*
+          pkgutil --expand-full build/GorizontVS-VDI-Client-Setup-*.pkg /tmp/pkg-expand
+
+          find /tmp/pkg-expand -maxdepth 5 -type f | sort | head -500
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GorizontVS-VDI-pkg-macos14-arm64
+          path: build/GorizontVS-VDI-Client-Setup-*.pkg

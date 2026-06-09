@@ -1,0 +1,41 @@
+FROM alt:p10
+
+RUN apt-get update && apt-get install -y gcc gcc-c++ make meson ninja-build cmake python3-module-pip \
+		       pkgconfig python3 python3-dev glib2-devel glibc-devel glibc-core \
+		       zip unzip libacl-devel rsync rpm-build\
+		       libtool autoconf automake \
+		       libkrb5-devel patchelf python3-module-distutils-extra \
+		       libusb-devel libgio-devel libpixman-devel openssl-devel libopus-devel python3-module-pyparsing \
+		       libjpeg-devel zlib-devel libspice-gtk3 libgtk+3-gir-devel \
+		       gstreamer-vaapi gst-plugins-base1.0 gst-plugins-bad1.0 gst-plugins-bad1.0-devel libgstreamer1.0-gir gst-plugins-libcamera1.0 gst-plugins-good1.0 gst-plugins-ugly1.0 gst-plugins1.0-tools gst-plugins1.0-devel gst-plugins-bad1.0 \
+		       liborc-devel liblz4-devel libsasl2-devel libjson-glib-devel perl-podlators libpolkit-devel libcap-ng-devel gettext-tools
+
+
+RUN useradd rpmb
+
+WORKDIR /home/rpmb
+
+
+RUN chown root:root /root/.ssh
+RUN chmod 700 /root/.ssh
+
+RUN chown root:root /root/.ssh/config
+RUN chmod 600 /root/.ssh/config
+
+RUN mkdir -p /home/rpmb/RPM/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+RUN mkdir -p /home/rpmb/RPM/SOURCES/build
+RUN chown -R rpmb:rpmb /home/rpmb 
+
+WORKDIR /opt/build/
+COPY . .
+RUN mkdir dist-linux
+RUN python3 -m venv venv 
+RUN /opt/build/venv/bin/pip install -U pip setuptools wheel
+RUN /opt/build/venv/bin/pip install -r requirements.txt
+RUN /opt/build/venv/bin/pip install pyparsing PySide6 Nuitka ordered-set zstandard pyspnego krb5
+
+RUN /opt/build/venv/bin/python --version
+RUN /opt/build/venv/bin/pip list
+RUN chmod +x rebuild.sh
+#ENV PATH="/opt/build/venv/bin:$PATH"
+#ENV VIRTUAL_ENV="/opt/build/venv"

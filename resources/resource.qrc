@@ -1,0 +1,41 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/img">
+        <file>static/login-bg.svg</file>
+        <file>static/login-bg-white.svg</file>
+        <file>static/login-bg-dark.svg</file>
+        <file>static/app.ico</file>
+        <file>static/app.icns</file>
+        <file>static/logo.svg</file>
+        <file>static/logo-small.svg</file>
+        <file>static/gorizontvs-logo.svg</file>
+        <file>static/eye_off.svg</file>
+        <file>static/eye_open.svg</file>
+        <file>static/globe.svg</file>
+        <file>static/lock.svg</file>
+        <file>static/user.svg</file>
+        <file>static/search.svg</file>
+        <file>static/nav-home.svg</file>
+        <file>static/nav-apps.svg</file>
+        <file>static/nav-desktops.svg</file>
+    </qresource>
+    <qresource prefix="/fonts">
+        <file>fonts/Montserrat-Black.ttf</file>
+        <file>fonts/Montserrat-Bold.ttf</file>
+        <file>fonts/Montserrat-Light.ttf</file>
+        <file>fonts/Montserrat-Medium.ttf</file>
+        <file>fonts/Montserrat-Regular.ttf</file>
+        <file>fonts/Montserrat-SemiBold.ttf</file>
+    </qresource>
+    <qresource prefix="/styles">
+        <file>styles.qss</file>
+        <file>styles_dark.qss</file>
+    </qresource>
+    <qresource prefix="/i18n">
+        <file alias="en_US.qm">../i18n/en_US.qm</file>
+        <file alias="ru_RU.qm">../i18n/ru_RU.qm</file>
+    </qresource>
+    <qresource prefix="/meta">
+        <file alias="VERSION">../VERSION</file>
+    </qresource>
+</RCC>

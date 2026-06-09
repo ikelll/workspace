@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+APP="/Applications/GorizontVS-VDI.app"
+
+if [ -d "$APP" ]; then
+  /usr/bin/xattr -cr "$APP" || true
+  /bin/chmod -R a+rX "$APP" || true
+
+  if [ -f "$APP/Contents/MacOS/GorizontVS-VDI" ]; then
+    /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI" || true
+  fi
+
+  if [ -f "$APP/Contents/MacOS/GorizontVS-VDI.real" ]; then
+    /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI.real" || true
+  fi
+fi
+
+exit 0
