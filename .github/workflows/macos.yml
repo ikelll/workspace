@@ -64,7 +64,7 @@ jobs:
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
 
-          /opt/homebrew/bin/python3 -m pip install pyparsing
+          /opt/homebrew/bin/python3 -m pip install pyparsing --break-system-packages
           /opt/homebrew/bin/python3 -c "import pyparsing; print('pyparsing OK')"
 
       - name: Python venv
