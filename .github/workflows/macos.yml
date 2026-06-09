@@ -40,7 +40,6 @@ jobs:
           brew update
           brew install \
             python@3.13 \
-            python-pyparsing \
             krb5 \
             gstreamer \
             gst-plugins-base \
@@ -74,6 +73,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pyparsing krb5 nuitka ordered-set zstandard imageio
+          /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing || \
 
           python --version
           pip --version
