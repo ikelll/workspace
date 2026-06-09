@@ -37,9 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-
           brew update
-
           brew install \
             python@3.13 \
 	    python-pyparsing \
