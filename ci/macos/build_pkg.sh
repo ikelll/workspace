@@ -216,7 +216,7 @@ find "$APP_DST" -maxdepth 4 -type f | sort | head -300
 
 echo "==> Analyze component"
 
-pkgbuild --analyze "$PAYLOAD_DIR" "$ROOT_DIR/build/component.plist"
+pkgbuild --analyze --root "$PAYLOAD_DIR" "$ROOT_DIR/build/component.plist"
 
 /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
