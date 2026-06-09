@@ -140,6 +140,7 @@ jobs:
 
           ci/macos/build_pkg.sh
 
+
       - name: Verify PKG
         shell: bash
         run: |
@@ -149,9 +150,10 @@ jobs:
 
           pkgutil --payload-files build/component.pkg | head -300
 
-          mkdir -p /tmp/pkg-expand
-          rm -rf /tmp/pkg-expand/*
-          pkgutil --expand-full build/GorizontVS-VDI-Client-Setup-*.pkg /tmp/pkg-expand
+          rm -rf /tmp/pkg-expand
+
+          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg | head -n 1)"
+          pkgutil --expand-full "$PKG_FILE" /tmp/pkg-expand
 
           find /tmp/pkg-expand -maxdepth 5 -type f | sort | head -500
 
