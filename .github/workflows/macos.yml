@@ -59,7 +59,24 @@ jobs:
             libusb \
             gettext \
             cyrus-sasl \
-            pkg-config
+            pkg-config \
+            ffmpeg \
+            x264 \
+            x265 \
+            aom \
+            dav1d \
+            libvpx \
+            svt-av1 \
+            libogg \
+            libvorbis \
+            flac \
+            lame \
+            fdk-aac \
+            opusfile \
+            libass \
+            libpng \
+            webp \
+            jpeg-xl
 
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
