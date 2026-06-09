@@ -66,7 +66,23 @@ resolve_lib() {
       "/opt/homebrew/opt/opus/lib" \
       "/opt/homebrew/opt/phodav/lib" \
       "/opt/homebrew/opt/pixman/lib" \
-      "/opt/homebrew/opt/libusb/lib"
+      "/opt/homebrew/opt/libusb/lib" \
+      "/opt/homebrew/opt/ffmpeg/lib" \
+      "/opt/homebrew/opt/x264/lib" \
+      "/opt/homebrew/opt/x265/lib" \
+      "/opt/homebrew/opt/aom/lib" \
+      "/opt/homebrew/opt/dav1d/lib" \
+      "/opt/homebrew/opt/libvpx/lib" \
+      "/opt/homebrew/opt/svt-av1/lib" \
+      "/opt/homebrew/opt/libogg/lib" \
+      "/opt/homebrew/opt/libvorbis/lib" \
+      "/opt/homebrew/opt/flac/lib" \
+      "/opt/homebrew/opt/lame/lib" \
+      "/opt/homebrew/opt/fdk-aac/lib" \
+      "/opt/homebrew/opt/libass/lib" \
+      "/opt/homebrew/opt/libpng/lib" \
+      "/opt/homebrew/opt/webp/lib" \
+      "/opt/homebrew/opt/jpeg-xl/lib"
     do
       if [ -f "$base/$name" ]; then
         echo "$base/$name"
@@ -89,15 +105,18 @@ copy_lib() {
   local base
   base="$(basename "$src")"
 
+  # GStreamer plugins already live in Resources/spice/lib/gstreamer-1.0.
   if [[ "$src" == *"/lib/gstreamer-1.0/"* ]]; then
     return 0
   fi
 
+  # Nuitka / pyside6-deploy already places Qt into Contents/MacOS.
   if [[ "$base" == Qt* || "$base" == libQt* ]]; then
     echo "SKIP QT DUPLICATE: $src"
     return 0
   fi
 
+  # Nuitka / pyside6-deploy already places Python runtime into Contents/MacOS.
   if [[ "$base" == Python || "$base" == libpython* ]]; then
     echo "SKIP PYTHON DUPLICATE: $src"
     return 0
@@ -191,12 +210,32 @@ while IFS= read -r file_path; do
       ;;
   esac
 
-  install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
+  # Main app / Nuitka / PySide.
   install_name_tool -add_rpath "@executable_path" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path/../Frameworks" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/.." "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/../Frameworks" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
+
+  # SPICE prefix:
+  # Contents/Resources/spice/bin/spicy -> ../lib/*.dylib
+  install_name_tool -add_rpath "@loader_path/../lib" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path/../lib" "$file_path" 2>/dev/null || true
+
+  # SPICE binaries -> Contents/Frameworks/*.dylib
+  # spicy path: Contents/Resources/spice/bin/spicy
+  # ../../../Frameworks = Contents/Frameworks
+  install_name_tool -add_rpath "@loader_path/../../../Frameworks" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path/../../../Frameworks" "$file_path" 2>/dev/null || true
+
+  # GStreamer plugins:
+  # Contents/Resources/spice/lib/gstreamer-1.0/plugin.dylib
+  # .. = spice/lib
+  # ../../../../Frameworks = Contents/Frameworks
+  install_name_tool -add_rpath "@loader_path/../.." "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
 
   while IFS= read -r line; do
     dep="$(echo "$line" | awk '{print $1}')"

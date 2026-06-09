@@ -40,20 +40,51 @@ fi
 
 rsync -a "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
 
-echo "==> Copy GStreamer runtime from runner"
+echo "==> Copy GStreamer runtime/plugins/codecs from runner"
 
+mkdir -p "$SPICE_DST/bin"
+mkdir -p "$SPICE_DST/lib"
 mkdir -p "$SPICE_DST/lib/gstreamer-1.0"
 mkdir -p "$SPICE_DST/libexec/gstreamer-1.0"
 mkdir -p "$SPICE_DST/share"
 
+# Main GStreamer plugins directory.
 if [ -d "/opt/homebrew/lib/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/lib/gstreamer-1.0/" "$SPICE_DST/lib/gstreamer-1.0/"
 fi
 
+# Plugin directories from Homebrew formulas.
+for gst_plugin_dir in \
+  "/opt/homebrew/opt/gstreamer/lib/gstreamer-1.0" \
+  "/opt/homebrew/opt/gst-plugins-base/lib/gstreamer-1.0" \
+  "/opt/homebrew/opt/gst-plugins-good/lib/gstreamer-1.0" \
+  "/opt/homebrew/opt/gst-plugins-bad/lib/gstreamer-1.0" \
+  "/opt/homebrew/opt/gst-libav/lib/gstreamer-1.0"
+do
+  if [ -d "$gst_plugin_dir" ]; then
+    echo "Copy GST plugins: $gst_plugin_dir"
+    rsync -a "$gst_plugin_dir/" "$SPICE_DST/lib/gstreamer-1.0/"
+  fi
+done
+
+# gst-plugin-scanner.
 if [ -d "/opt/homebrew/libexec/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/libexec/gstreamer-1.0/" "$SPICE_DST/libexec/gstreamer-1.0/"
 fi
 
+if [ -d "/opt/homebrew/opt/gstreamer/libexec/gstreamer-1.0" ]; then
+  rsync -a "/opt/homebrew/opt/gstreamer/libexec/gstreamer-1.0/" "$SPICE_DST/libexec/gstreamer-1.0/"
+fi
+
+# Optional GStreamer tools, useful for diagnostics.
+for tool in gst-inspect-1.0 gst-launch-1.0 gst-discoverer-1.0; do
+  if [ -x "/opt/homebrew/bin/$tool" ]; then
+    cp -f "/opt/homebrew/bin/$tool" "$SPICE_DST/bin/$tool"
+    chmod +x "$SPICE_DST/bin/$tool"
+  fi
+done
+
+# GStreamer / GLib data.
 for src in \
   "/opt/homebrew/share/gstreamer-1.0" \
   "/opt/homebrew/share/glib-2.0" \
@@ -66,8 +97,67 @@ do
   fi
 done
 
+echo "==> List copied GST plugins"
+find "$SPICE_DST/lib/gstreamer-1.0" -maxdepth 1 -type f -name "*.dylib" | sort | sed 's#^#GST_PLUGIN: #'
+
+echo "==> Check important GStreamer plugins"
+
+required_gst_plugins=(
+  "libgstcoreelements.dylib"
+  "libgstplayback.dylib"
+  "libgstvideoconvertscale.dylib"
+  "libgstaudioconvert.dylib"
+  "libgstaudioresample.dylib"
+  "libgstapp.dylib"
+  "libgstlibav.dylib"
+  "libgstisomp4.dylib"
+  "libgstmatroska.dylib"
+  "libgstrtp.dylib"
+  "libgstrtpmanager.dylib"
+  "libgstrtsp.dylib"
+  "libgstvideoparsersbad.dylib"
+)
+
+for plugin in "${required_gst_plugins[@]}"; do
+  if [ -f "$SPICE_DST/lib/gstreamer-1.0/$plugin" ]; then
+    echo "OK GST: $plugin"
+  else
+    echo "WARN GST MISSING: $plugin"
+  fi
+done
+
+if [ ! -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
+  echo "ERROR: gst-plugin-scanner not found"
+  find "$SPICE_DST/libexec" -maxdepth 5 -type f || true
+  exit 1
+fi
+
 echo "==> Bundle dylib dependencies from runner"
 ci/macos/bundle_dylibs.sh "$APP_DST"
+
+echo "==> Check SPICE spicy rpaths"
+
+SPICY_BIN="$APP_DST/Contents/Resources/spice/bin/spicy"
+
+if [ -x "$SPICY_BIN" ]; then
+  echo "spicy exists: $SPICY_BIN"
+  otool -l "$SPICY_BIN" | grep -A2 LC_RPATH || true
+  otool -L "$SPICY_BIN" || true
+
+  if ! otool -l "$SPICY_BIN" | grep -q "@loader_path/../lib"; then
+    echo "ERROR: spicy has no @loader_path/../lib rpath"
+    exit 1
+  fi
+
+  if ! otool -l "$SPICY_BIN" | grep -q "@loader_path/../../../Frameworks"; then
+    echo "ERROR: spicy has no @loader_path/../../../Frameworks rpath"
+    exit 1
+  fi
+else
+  echo "ERROR: spicy binary not found or not executable: $SPICY_BIN"
+  find "$SPICE_DST" -maxdepth 5 -type f -name "spicy" -print || true
+  exit 1
+fi
 
 echo "==> Remove duplicated Qt/Python libraries from Frameworks"
 
@@ -102,11 +192,17 @@ APP_RESOURCES_DIR="$APP_CONTENTS_DIR/Resources"
 APP_FRAMEWORKS_DIR="$APP_CONTENTS_DIR/Frameworks"
 SPICE_DIR="$APP_RESOURCES_DIR/spice"
 
+mkdir -p "$HOME/Library/Application Support/GorizontVS" || true
+
 export PATH="$SPICE_DIR/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-export DYLD_FALLBACK_LIBRARY_PATH="$APP_FRAMEWORKS_DIR:$SPICE_DIR/lib:/usr/lib"
+
+export DYLD_FALLBACK_LIBRARY_PATH="$APP_FRAMEWORKS_DIR:$SPICE_DIR/lib:$SPICE_DIR/lib/gstreamer-1.0:/usr/lib"
+
 export GST_PLUGIN_PATH_1_0="$SPICE_DIR/lib/gstreamer-1.0"
 export GST_PLUGIN_SCANNER="$SPICE_DIR/libexec/gstreamer-1.0/gst-plugin-scanner"
 export GST_REGISTRY_REUSE_PLUGIN_SCANNER=1
+export GST_REGISTRY="$HOME/Library/Application Support/GorizontVS/gstreamer-registry.bin"
+
 export GIO_MODULE_DIR="$SPICE_DIR/lib/gio/modules"
 export GI_TYPELIB_PATH="$SPICE_DIR/lib/girepository-1.0"
 
@@ -146,8 +242,6 @@ chmod +x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
 
 echo "==> Remove broken symlinks before codesign"
 
-# Homebrew/glib/gstreamer can bring broken symlinks into share/.
-# codesign may fail on the whole .app with "No such file or directory".
 find "$APP_DST" -xtype l -print -delete 2>/dev/null || true
 
 echo "==> Clear xattrs"
@@ -168,9 +262,6 @@ done
 
 echo "==> Ad-hoc sign app bundle"
 
-# Do not use --deep here.
-# All Mach-O files are signed one by one above.
-# --deep can fail on bundled resources/symlinks from Homebrew runtimes.
 codesign --remove-signature "$APP_DST" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_DST"
 
@@ -216,7 +307,9 @@ find "$APP_DST" -maxdepth 4 -type f | sort | head -300
 
 echo "==> Analyze component"
 
-pkgbuild --analyze --root "$PAYLOAD_DIR" "$ROOT_DIR/build/component.plist"
+pkgbuild --analyze \
+  --root "$PAYLOAD_DIR" \
+  "$ROOT_DIR/build/component.plist"
 
 /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
