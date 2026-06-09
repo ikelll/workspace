@@ -40,7 +40,7 @@ jobs:
           brew update
           brew install \
             python@3.13 \
-	    python-pyparsing \
+            python-pyparsing \
             krb5 \
             gstreamer \
             gst-plugins-base \
