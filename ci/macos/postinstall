@@ -3,19 +3,66 @@ set -e
 
 APP="/Applications/GorizontVS-VDI.app"
 
-if [ -d "$APP" ]; then
-  /usr/bin/find "$APP" -type f -exec /usr/bin/xattr -c {} + 2>/dev/null || true
-  /usr/bin/find "$APP" -type d -exec /usr/bin/xattr -c {} + 2>/dev/null || true
-
-  /bin/chmod -R a+rX "$APP" || true
-
-  if [ -f "$APP/Contents/MacOS/GorizontVS-VDI" ]; then
-    /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI" || true
-  fi
-
-  if [ -f "$APP/Contents/MacOS/GorizontVS-VDI.real" ]; then
-    /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI.real" || true
-  fi
+if [ ! -d "$APP" ]; then
+  exit 0
 fi
+
+echo "postinstall: fixing permissions"
+
+# Права
+/bin/chmod -R u+w "$APP" || true
+/bin/chmod -R a+rX "$APP" || true
+
+if [ -f "$APP/Contents/MacOS/GorizontVS-VDI" ]; then
+  /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI" || true
+fi
+
+if [ -f "$APP/Contents/MacOS/GorizontVS-VDI.real" ]; then
+  /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI.real" || true
+fi
+
+if [ -f "$APP/Contents/Resources/spice/bin/spicy" ]; then
+  /bin/chmod +x "$APP/Contents/Resources/spice/bin/spicy" || true
+fi
+
+if [ -f "$APP/Contents/Resources/spice/bin/gst-inspect-1.0" ]; then
+  /bin/chmod +x "$APP/Contents/Resources/spice/bin/gst-inspect-1.0" || true
+fi
+
+if [ -f "$APP/Contents/Resources/spice/bin/gst-launch-1.0" ]; then
+  /bin/chmod +x "$APP/Contents/Resources/spice/bin/gst-launch-1.0" || true
+fi
+
+echo "postinstall: removing broken symlinks"
+
+# Битые symlink из glib/gstreamer мешают codesign/xattr
+/usr/bin/find "$APP" -xtype l -print -delete 2>/dev/null || true
+
+echo "postinstall: clearing xattrs"
+
+/usr/bin/find "$APP" -type f -exec /usr/bin/xattr -c {} + 2>/dev/null || true
+/usr/bin/find "$APP" -type d -exec /usr/bin/xattr -c {} + 2>/dev/null || true
+
+echo "postinstall: ad-hoc signing all Mach-O files"
+
+# Подписываем вообще все Mach-O файлы, не только *.dylib/*.so.
+# Это важно для QtCore, Python, spicy, gst-inspect, gst-plugin-scanner и т.д.
+/usr/bin/find "$APP" -type f -print0 | while IFS= read -r -d '' file_path; do
+  if /usr/bin/file "$file_path" 2>/dev/null | /usr/bin/grep -q "Mach-O"; then
+    echo "sign: $file_path"
+    /bin/chmod u+w "$file_path" || true
+    /usr/bin/codesign --remove-signature "$file_path" 2>/dev/null || true
+    /usr/bin/codesign --force --sign - --timestamp=none "$file_path"
+  fi
+done
+
+echo "postinstall: signing app bundle"
+
+/usr/bin/codesign --remove-signature "$APP" 2>/dev/null || true
+/usr/bin/codesign --force --sign - --timestamp=none "$APP"
+
+echo "postinstall: verifying app"
+
+/usr/bin/codesign --verify --verbose=4 "$APP" || true
 
 exit 0
