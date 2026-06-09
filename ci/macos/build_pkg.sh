@@ -16,6 +16,13 @@ RESOURCES_DIR="$APP_DST/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
 FRAMEWORKS_DST="$APP_DST/Contents/Frameworks"
 
+echo "==> Root dir: $ROOT_DIR"
+echo "==> App name: $APP_NAME"
+echo "==> App bundle: $APP_BUNDLE"
+echo "==> App version: $APP_VERSION"
+echo "==> Package identifier: $PKG_IDENTIFIER"
+echo "==> macOS minimum: $DEPLOY_TARGET"
+
 echo "==> Clean old build"
 rm -rf "$ROOT_DIR/build"
 
@@ -23,6 +30,20 @@ echo "==> Create clean payload"
 mkdir -p "$PAYLOAD_DIR/Applications"
 mkdir -p "$SPICE_DST"
 mkdir -p "$FRAMEWORKS_DST"
+
+echo "==> Check source app bundle"
+if [ ! -d "dist/$APP_BUNDLE" ]; then
+  echo "ERROR: dist/$APP_BUNDLE not found"
+  echo "dist content:"
+  find dist -maxdepth 4 -type f -o -type d 2>/dev/null || true
+  exit 1
+fi
+
+if [ ! -x "dist/$APP_BUNDLE/Contents/MacOS/$APP_NAME" ]; then
+  echo "ERROR: dist/$APP_BUNDLE/Contents/MacOS/$APP_NAME not executable or not found"
+  find "dist/$APP_BUNDLE/Contents/MacOS" -maxdepth 3 -type f 2>/dev/null || true
+  exit 1
+fi
 
 echo "==> Copy app bundle"
 cp -a "dist/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
@@ -33,7 +54,8 @@ test -x "$APP_DST/Contents/MacOS/$APP_NAME"
 echo "==> Copy built SPICE files"
 if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
   echo "ERROR: spice-full/build/spice/opt/homebrew not found"
-  find spice-full/build/spice -maxdepth 5 -type d 2>/dev/null || true
+  echo "Available spice build dirs:"
+  find spice-full/build/spice -maxdepth 6 -type d 2>/dev/null || true
   exit 1
 fi
 
@@ -46,10 +68,14 @@ mkdir -p "$SPICE_DST/share"
 
 if [ -d "/opt/homebrew/lib/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/lib/gstreamer-1.0/" "$SPICE_DST/lib/gstreamer-1.0/"
+else
+  echo "WARN: /opt/homebrew/lib/gstreamer-1.0 not found"
 fi
 
 if [ -d "/opt/homebrew/libexec/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/libexec/gstreamer-1.0/" "$SPICE_DST/libexec/gstreamer-1.0/"
+else
+  echo "WARN: /opt/homebrew/libexec/gstreamer-1.0 not found"
 fi
 
 for src in \
@@ -101,14 +127,25 @@ fi
 echo "==> Patch Info.plist"
 PLIST="$APP_DST/Contents/Info.plist"
 
+if [ ! -f "$PLIST" ]; then
+  echo "ERROR: Info.plist not found: $PLIST"
+  exit 1
+fi
+
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $DEPLOY_TARGET" "$PLIST" 2>/dev/null || \
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $DEPLOY_TARGET" "$PLIST"
 
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $APP_VERSION" "$PLIST" 2>/dev/null || true
+
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $APP_VERSION" "$PLIST" 2>/dev/null || true
 
 echo "==> Permissions"
+# xattr иногда пишет No such file на симлинках/гонках внутри больших деревьев.
+# Это не должно валить сборку.
 xattr -cr "$APP_DST" || true
+
 chmod -R a+rX "$APP_DST"
 chmod +x "$APP_DST/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
@@ -117,10 +154,14 @@ echo "==> Check final app structure"
 find "$APP_DST" -maxdepth 4 -type f | sort | head -300
 
 echo "==> Analyze component"
-pkgbuild --analyze "$PAYLOAD_DIR" "$ROOT_DIR/build/component.plist"
+pkgbuild --analyze \
+  --root "$PAYLOAD_DIR" \
+  "$ROOT_DIR/build/component.plist"
 
-/usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
+if [ -f "$ROOT_DIR/build/component.plist" ]; then
+  /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
+fi
 
 echo "==> Build component.pkg"
 pkgbuild \
@@ -156,4 +197,5 @@ productbuild \
   "$FINAL_PKG"
 
 echo "==> Done"
+ls -lh "$ROOT_DIR/build/component.pkg"
 ls -lh "$FINAL_PKG"
