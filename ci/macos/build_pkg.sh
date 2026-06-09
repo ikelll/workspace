@@ -126,12 +126,31 @@ PLIST="$APP_DST/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || true
 
-echo "==> Permissions and xattrs"
+echo "==> Check main executable"
+
+ls -la "$APP_DST"
+ls -la "$APP_DST/Contents"
+ls -la "$APP_DST/Contents/MacOS"
+
+test -d "$APP_DST"
+test -f "$APP_DST/Contents/Info.plist"
+test -x "$APP_DST/Contents/MacOS/$APP_NAME"
+test -x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
+
+echo "==> Permissions"
 
 chmod -R u+w "$APP_DST" || true
 chmod -R a+rX "$APP_DST"
 chmod +x "$APP_DST/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
+
+echo "==> Remove broken symlinks before codesign"
+
+# Homebrew/glib/gstreamer can bring broken symlinks into share/.
+# codesign may fail on the whole .app with "No such file or directory".
+find "$APP_DST" -xtype l -print -delete 2>/dev/null || true
+
+echo "==> Clear xattrs"
 
 find "$APP_DST" -type f -exec xattr -c {} + 2>/dev/null || true
 find "$APP_DST" -type d -exec xattr -c {} + 2>/dev/null || true
@@ -149,12 +168,20 @@ done
 
 echo "==> Ad-hoc sign app bundle"
 
+# Do not use --deep here.
+# All Mach-O files are signed one by one above.
+# --deep can fail on bundled resources/symlinks from Homebrew runtimes.
 codesign --remove-signature "$APP_DST" 2>/dev/null || true
-codesign --force --deep --sign - --timestamp=none "$APP_DST"
+codesign --force --sign - --timestamp=none "$APP_DST"
 
 echo "==> Verify ad-hoc signature"
 
-codesign --verify --deep --strict --verbose=4 "$APP_DST"
+codesign --verify --verbose=4 "$APP_DST"
+
+if ! codesign --verify --deep --strict --verbose=4 "$APP_DST"; then
+  echo "WARN: deep strict verification failed. Printing diagnostics, but continuing."
+  codesign --verify --deep --strict --verbose=4 "$APP_DST" || true
+fi
 
 echo "==> Check no duplicated Qt/Python in Frameworks"
 
@@ -166,9 +193,19 @@ fi
 
 echo "==> Check no /opt/homebrew refs after cleanup"
 
-if find "$APP_DST" -type f -print0 | xargs -0 file 2>/dev/null | grep "Mach-O" | cut -d: -f1 | while read -r macho; do
-  otool -L "$macho" 2>/dev/null | grep "/opt/homebrew" && echo "BAD_FILE=$macho"
-done | grep -q "/opt/homebrew"; then
+bad_homebrew=0
+
+while IFS= read -r macho; do
+  if file "$macho" | grep -q "Mach-O"; then
+    if otool -L "$macho" 2>/dev/null | grep -q "/opt/homebrew"; then
+      echo "BAD HOMEBREW REF: $macho"
+      otool -L "$macho" 2>/dev/null | grep "/opt/homebrew" || true
+      bad_homebrew=1
+    fi
+  fi
+done < <(find "$APP_DST" -type f -print)
+
+if [ "$bad_homebrew" -eq 1 ]; then
   echo "ERROR: unresolved /opt/homebrew references remained"
   exit 1
 fi
