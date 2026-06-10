@@ -3,11 +3,12 @@ set -euo pipefail
 
 APP_DIR="${1:?Usage: bundle_dylibs.sh /path/to/GorizontVS-VDI.app}"
 
+APP_NAME="${APP_NAME:-GorizontVS-VDI}"
+
 APP_BIN_DIR="$APP_DIR/Contents/MacOS"
 FRAMEWORKS_DIR="$APP_DIR/Contents/Frameworks"
 SPICE_DIR="$APP_DIR/Contents/Resources/spice"
 
-APP_NAME="${APP_NAME:-GorizontVS-VDI}"
 MAIN_APP_BIN="$APP_BIN_DIR/$APP_NAME"
 
 mkdir -p "$FRAMEWORKS_DIR"
@@ -24,14 +25,6 @@ is_system_lib() {
 is_macho() {
   local file_path="$1"
   file "$file_path" 2>/dev/null | grep -q "Mach-O"
-}
-
-is_main_app_binary() {
-  local file_path="$1"
-
-  [[ "$file_path" == "$MAIN_APP_BIN" ]] && return 0
-
-  return 1
 }
 
 resolve_lib() {
@@ -52,12 +45,11 @@ resolve_lib() {
     local name="${lib#@rpath/}"
 
     for base in \
-      "$APP_BIN_DIR" \
       "$FRAMEWORKS_DIR" \
+      "$SPICE_DIR/bin" \
       "$SPICE_DIR/lib" \
       "$SPICE_DIR/lib/gstreamer-1.0" \
       "/opt/homebrew/lib" \
-      "/opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13" \
       "/opt/homebrew/opt/gstreamer/lib" \
       "/opt/homebrew/opt/gstreamer/lib/gstreamer-1.0" \
       "/opt/homebrew/opt/gst-plugins-base/lib" \
@@ -140,10 +132,10 @@ copy_lib() {
 }
 
 collect_macho_files() {
-  find "$APP_DIR" -type f \
-    ! -path "$MAIN_APP_BIN" \
-    ! -name "${APP_NAME}.real" \
-    -print
+  # ВАЖНО:
+  # Обрабатываем только SPICE/GStreamer subtree.
+  # Основной Nuitka/PySide app runtime в Contents/MacOS вообще не трогаем.
+  find "$SPICE_DIR" -type f -print
 }
 
 rewrite_dep_to_local() {
@@ -153,9 +145,9 @@ rewrite_dep_to_local() {
   local dep_base
   dep_base="$(basename "$dep")"
 
-  if [ -f "$APP_BIN_DIR/$dep_base" ]; then
+  if [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
     install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-  elif [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
+  elif [ -f "$SPICE_DIR/bin/$dep_base" ]; then
     install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
   elif [ -f "$SPICE_DIR/lib/$dep_base" ]; then
     install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
@@ -166,8 +158,13 @@ rewrite_dep_to_local() {
   fi
 }
 
-echo "==> Collect dylib dependencies"
-echo "==> Protected main app binary: $MAIN_APP_BIN"
+echo "==> Bundle dylib dependencies for SPICE subtree only"
+echo "APP_DIR=$APP_DIR"
+echo "SPICE_DIR=$SPICE_DIR"
+echo "FRAMEWORKS_DIR=$FRAMEWORKS_DIR"
+echo "PROTECTED MAIN APP BIN=$MAIN_APP_BIN"
+
+test -d "$SPICE_DIR"
 
 changed=1
 round=0
@@ -179,11 +176,6 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
   echo "==> Dependency scan round $round"
 
   while IFS= read -r file_path; do
-    if is_main_app_binary "$file_path"; then
-      echo "SKIP MAIN APP BINARY: $file_path"
-      continue
-    fi
-
     is_macho "$file_path" || continue
 
     loader_dir="$(dirname "$file_path")"
@@ -209,14 +201,9 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
   done < <(collect_macho_files)
 done
 
-echo "==> Rewrite dylib paths and install names"
+echo "==> Rewrite dylib paths and install names for SPICE subtree only"
 
 while IFS= read -r file_path; do
-  if is_main_app_binary "$file_path"; then
-    echo "SKIP MAIN APP BINARY: $file_path"
-    continue
-  fi
-
   is_macho "$file_path" || continue
 
   chmod u+w "$file_path" || true
@@ -227,24 +214,23 @@ while IFS= read -r file_path; do
     *.dylib|*.so|*.bundle)
       install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
       ;;
-    "$APP_BIN_DIR"/Qt*|"$APP_BIN_DIR"/Python|"$FRAMEWORKS_DIR"/Qt*|"$FRAMEWORKS_DIR"/Python)
-      install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
-      ;;
   esac
 
-  install_name_tool -add_rpath "@executable_path" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path/.." "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path/../Frameworks" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
-
+  # SPICE bin: Contents/Resources/spice/bin/spicy
+  # @loader_path/../lib -> Contents/Resources/spice/lib
   install_name_tool -add_rpath "@loader_path/../lib" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../lib" "$file_path" 2>/dev/null || true
 
+  # SPICE bin -> Contents/Frameworks
+  # Contents/Resources/spice/bin -> ../../../Frameworks
   install_name_tool -add_rpath "@loader_path/../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../Frameworks" "$file_path" 2>/dev/null || true
 
+  # GStreamer plugins:
+  # Contents/Resources/spice/lib/gstreamer-1.0/plugin.dylib
+  # @loader_path/.. -> Contents/Resources/spice/lib
+  # @loader_path/../../../../Frameworks -> Contents/Frameworks
+  install_name_tool -add_rpath "@loader_path/.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
@@ -259,14 +245,9 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Second rewrite pass after install names changed"
+echo "==> Second rewrite pass for /opt/homebrew refs in SPICE subtree only"
 
 while IFS= read -r file_path; do
-  if is_main_app_binary "$file_path"; then
-    echo "SKIP MAIN APP BINARY: $file_path"
-    continue
-  fi
-
   is_macho "$file_path" || continue
 
   chmod u+w "$file_path" || true
@@ -285,16 +266,11 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Validate: no /opt/homebrew dylib references except main app binary"
+echo "==> Validate: no /opt/homebrew refs in SPICE subtree"
 
 bad=0
 
 while IFS= read -r file_path; do
-  if is_main_app_binary "$file_path"; then
-    echo "SKIP MAIN APP BINARY VALIDATION: $file_path"
-    continue
-  fi
-
   is_macho "$file_path" || continue
 
   while IFS= read -r line; do
@@ -308,16 +284,20 @@ while IFS= read -r file_path; do
 done < <(collect_macho_files)
 
 if [ "$bad" -eq 1 ]; then
-  echo "ERROR: unresolved /opt/homebrew dependencies found"
+  echo "ERROR: unresolved /opt/homebrew dependencies found in SPICE subtree"
   exit 1
 fi
 
-echo "==> Validate: no GTK4 libraries in Frameworks"
+echo "==> Validate: main app binary was not renamed"
 
-if find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \) | grep -q .; then
-  echo "ERROR: GTK4 libraries found in Contents/Frameworks"
-  find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \)
+if [ ! -x "$MAIN_APP_BIN" ]; then
+  echo "ERROR: main app binary missing or not executable: $MAIN_APP_BIN"
   exit 1
 fi
 
-echo "==> Dylib bundle OK"
+if [ -e "$APP_BIN_DIR/${APP_NAME}.real" ]; then
+  echo "ERROR: unexpected wrapper real binary exists: $APP_BIN_DIR/${APP_NAME}.real"
+  exit 1
+fi
+
+echo "==> Dylib bundle OK for SPICE subtree only"

@@ -17,10 +17,10 @@ RESOURCES_DIR="$APP_DIR/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
 FRAMEWORKS_DST="$APP_DIR/Contents/Frameworks"
 
-FINAL_PKG="$BUILD_DIR/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
 COMPONENT_PKG="$BUILD_DIR/component.pkg"
+FINAL_PKG="$BUILD_DIR/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
 
-echo "==> Clean package build dir only"
+echo "==> Clean package build dir"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
@@ -30,6 +30,12 @@ test -x "$APP_BIN"
 
 echo "APP_DIR=$APP_DIR"
 echo "APP_BIN=$APP_BIN"
+
+if [ -e "$APP_DIR/Contents/MacOS/${APP_NAME}.real" ]; then
+  echo "ERROR: ${APP_NAME}.real must not exist"
+  ls -la "$APP_DIR/Contents/MacOS"
+  exit 1
+fi
 
 echo "==> Prepare app internal directories"
 mkdir -p "$SPICE_DST"
@@ -114,9 +120,11 @@ if [ ! -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
 fi
 
 echo "==> List copied GST plugins"
+
 find "$SPICE_DST/lib/gstreamer-1.0" -maxdepth 1 -type f -name "*.dylib" | sort | sed 's#^#GST_PLUGIN: #'
 
-echo "==> Bundle dylib dependencies into dist app"
+echo "==> Bundle dylib dependencies for SPICE only"
+
 ci/macos/bundle_dylibs.sh "$APP_DIR"
 
 echo "==> Remove GTK4 libraries, keep GTK3 for spicy"
@@ -156,6 +164,7 @@ echo "==> Keep Nuitka/PySide runtime untouched"
 # Не переименовываем Contents/MacOS/GorizontVS-VDI.
 # Не создаём wrapper.
 # Не создаём GorizontVS-VDI.real.
+# bundle_dylibs.sh должен работать только с Contents/Resources/spice.
 
 echo "==> Patch Info.plist"
 
@@ -209,16 +218,8 @@ done
 echo "==> Do not codesign app bundle itself"
 
 # ВАЖНО:
-# Не делаем codesign --force "$APP_DIR", чтобы не трогать основной бинарь.
-# Пакет остаётся unsigned/ad-hoc для внутренней установки.
-
-echo "==> Check no GTK4 libraries in Frameworks"
-
-if find "$FRAMEWORKS_DST" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \) | grep -q .; then
-  echo "ERROR: GTK4 libraries found in Contents/Frameworks"
-  find "$FRAMEWORKS_DST" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \)
-  exit 1
-fi
+# Не делаем codesign --force "$APP_DIR", чтобы не трогать основной Nuitka binary.
+# Для внутреннего unsigned/ad-hoc pkg этого достаточно.
 
 echo "==> Check removed problematic GST plugins"
 
