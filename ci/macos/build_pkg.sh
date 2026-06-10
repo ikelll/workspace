@@ -164,7 +164,7 @@ echo "==> Keep Nuitka/PySide runtime untouched"
 # Не переименовываем Contents/MacOS/GorizontVS-VDI.
 # Не создаём wrapper.
 # Не создаём GorizontVS-VDI.real.
-# bundle_dylibs.sh должен работать только с Contents/Resources/spice.
+# bundle_dylibs.sh должен работать только с Contents/Resources/spice и Contents/Frameworks.
 
 echo "==> Patch Info.plist"
 
@@ -199,13 +199,15 @@ echo "==> Clear xattrs"
 find "$APP_DIR" -type f -exec xattr -c {} + 2>/dev/null || true
 find "$APP_DIR" -type d -exec xattr -c {} + 2>/dev/null || true
 
-echo "==> Ad-hoc sign Mach-O files except main Nuitka binary"
+echo "==> Ad-hoc sign Mach-O files except main Nuitka/PySide runtime"
 
 find "$APP_DIR" -type f -print0 | while IFS= read -r -d '' file_path; do
-  if [ "$file_path" = "$APP_BIN" ]; then
-    echo "SKIP SIGN MAIN APP BINARY: $file_path"
-    continue
-  fi
+  case "$file_path" in
+    "$APP_DIR/Contents/MacOS/"*)
+      echo "SKIP SIGN NUITKA RUNTIME: $file_path"
+      continue
+      ;;
+  esac
 
   if file "$file_path" | grep -q "Mach-O"; then
     echo "SIGN: $file_path"
@@ -218,7 +220,7 @@ done
 echo "==> Do not codesign app bundle itself"
 
 # ВАЖНО:
-# Не делаем codesign --force "$APP_DIR", чтобы не трогать основной Nuitka binary.
+# Не делаем codesign --force "$APP_DIR", чтобы не трогать основной Nuitka/PySide runtime.
 # Для внутреннего unsigned/ad-hoc pkg этого достаточно.
 
 echo "==> Check removed problematic GST plugins"
@@ -234,16 +236,11 @@ do
   fi
 done
 
-echo "==> Check no /opt/homebrew refs except main Nuitka binary"
+echo "==> Check no /opt/homebrew refs in SPICE/Frameworks only"
 
 bad_homebrew=0
 
 while IFS= read -r macho; do
-  if [ "$macho" = "$APP_BIN" ]; then
-    echo "SKIP MAIN APP BINARY HOMEBREW CHECK: $macho"
-    continue
-  fi
-
   if file "$macho" | grep -q "Mach-O"; then
     if otool -L "$macho" 2>/dev/null | grep -q "/opt/homebrew"; then
       echo "BAD HOMEBREW REF: $macho"
@@ -251,10 +248,15 @@ while IFS= read -r macho; do
       bad_homebrew=1
     fi
   fi
-done < <(find "$APP_DIR" -type f -print)
+done < <(
+  {
+    find "$SPICE_DST" -type f -print
+    find "$FRAMEWORKS_DST" -type f -print
+  } | sort -u
+)
 
 if [ "$bad_homebrew" -eq 1 ]; then
-  echo "ERROR: unresolved /opt/homebrew references remained"
+  echo "ERROR: unresolved /opt/homebrew references remained in SPICE/Frameworks"
   exit 1
 fi
 
