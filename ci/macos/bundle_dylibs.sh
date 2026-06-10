@@ -174,12 +174,10 @@ copy_lib() {
   local base
   base="$(basename "$src")"
 
-  # GStreamer plugins already live in Resources/spice/lib/gstreamer-1.0.
   if [[ "$src" == *"/lib/gstreamer-1.0/"* ]]; then
     return 0
   fi
 
-  # Do not duplicate Qt/Python from Nuitka/PySide runtime.
   if [[ "$base" == Qt* || "$base" == libQt* ]]; then
     echo "SKIP QT DUPLICATE: $src"
     return 0
@@ -198,17 +196,12 @@ copy_lib() {
   src_real="$(real_path_for_compare "$src")"
   dst_real="$(real_path_for_compare "$dst")"
 
-  # ВАЖНО:
-  # Если src уже находится в Contents/Frameworks и совпадает с dst,
-  # нельзя rm -f "$dst", иначе удалим файл и потом cp из несуществующего src упадёт.
   if [ "$src_real" = "$dst_real" ]; then
     echo "KEEP EXISTING LOCAL LIB: $dst"
     chmod u+w "$dst" || true
     return 0
   fi
 
-  # Перезаписываем уже существующую dylib, иначе может остаться старая
-  # библиотека с install name /opt/homebrew/...
   if [ -f "$dst" ]; then
     echo "REPLACE EXISTING LIB: $dst <- $src"
     chmod u+w "$dst" || true
@@ -222,9 +215,6 @@ copy_lib() {
 }
 
 collect_macho_files() {
-  # ВАЖНО:
-  # Обрабатываем только SPICE/GStreamer и скопированные dylib в Frameworks.
-  # Основной Nuitka/PySide runtime в Contents/MacOS вообще не трогаем.
   {
     find "$SPICE_DIR" -type f -print
     find "$FRAMEWORKS_DIR" -type f -print
@@ -319,26 +309,17 @@ while IFS= read -r file_path; do
       ;;
   esac
 
-  # SPICE bin: Contents/Resources/spice/bin/spicy
-  # @loader_path/../lib -> Contents/Resources/spice/lib
   install_name_tool -add_rpath "@loader_path/../lib" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../lib" "$file_path" 2>/dev/null || true
 
-  # SPICE bin -> Contents/Frameworks
-  # Contents/Resources/spice/bin -> ../../../Frameworks
   install_name_tool -add_rpath "@loader_path/../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../Frameworks" "$file_path" 2>/dev/null || true
 
-  # GStreamer plugins:
-  # Contents/Resources/spice/lib/gstreamer-1.0/plugin.dylib
-  # @loader_path/.. -> Contents/Resources/spice/lib
-  # @loader_path/../../../../Frameworks -> Contents/Frameworks
   install_name_tool -add_rpath "@loader_path/.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
 
-  # Frameworks dylib -> same directory / app Frameworks
   install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true

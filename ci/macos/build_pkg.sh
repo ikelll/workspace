@@ -13,14 +13,20 @@ cd "$ROOT_DIR"
 BUILD_DIR="$ROOT_DIR/build"
 APP_DIR="$ROOT_DIR/dist/$APP_BUNDLE"
 APP_BIN="$APP_DIR/Contents/MacOS/$APP_NAME"
+
 RESOURCES_DIR="$APP_DIR/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
 FRAMEWORKS_DST="$APP_DIR/Contents/Frameworks"
 
 PKGROOT="$BUILD_DIR/pkgroot"
 APP_INSTALL_DIR="$PKGROOT/Applications"
+
 COMPONENT_PKG="$BUILD_DIR/component.pkg"
-FINAL_PKG="$BUILD_DIR/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
+
+GIT_SHA_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+RUN_ID="${GITHUB_RUN_NUMBER:-local}"
+
+FINAL_PKG="$BUILD_DIR/GorizontVS-VDI-Client-Setup-${APP_VERSION}-${RUN_ID}-${GIT_SHA_SHORT}-macos14-arm64.pkg"
 
 echo "==> Clean package build dir"
 rm -rf "$BUILD_DIR"
@@ -161,13 +167,6 @@ fi
 
 echo "==> Keep Nuitka/PySide runtime untouched"
 
-# ВАЖНО:
-# Не удаляем Qt/Python из Contents/MacOS или Contents/Frameworks.
-# Не переименовываем Contents/MacOS/GorizontVS-VDI.
-# Не создаём wrapper.
-# Не создаём GorizontVS-VDI.real.
-# bundle_dylibs.sh должен работать только с Contents/Resources/spice и Contents/Frameworks.
-
 echo "==> Patch Info.plist"
 
 PLIST="$APP_DIR/Contents/Info.plist"
@@ -192,38 +191,47 @@ if [ -f "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
   chmod +x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" || true
 fi
 
-echo "==> Remove broken symlinks"
+echo "==> Remove broken symlinks in SPICE/Frameworks only"
 
-find "$APP_DIR" -xtype l -print -delete 2>/dev/null || true
+if [ -d "$SPICE_DST" ]; then
+  find "$SPICE_DST" -xtype l -print -delete 2>/dev/null || true
+fi
 
-echo "==> Clear xattrs"
+if [ -d "$FRAMEWORKS_DST" ]; then
+  find "$FRAMEWORKS_DST" -xtype l -print -delete 2>/dev/null || true
+fi
 
-find "$APP_DIR" -type f -exec xattr -c {} + 2>/dev/null || true
-find "$APP_DIR" -type d -exec xattr -c {} + 2>/dev/null || true
+echo "==> Clear xattrs in SPICE/Frameworks only"
 
-echo "==> Ad-hoc sign Mach-O files except main Nuitka/PySide runtime"
+if [ -d "$SPICE_DST" ]; then
+  find "$SPICE_DST" -type f -exec xattr -c {} + 2>/dev/null || true
+  find "$SPICE_DST" -type d -exec xattr -c {} + 2>/dev/null || true
+fi
 
-find "$APP_DIR" -type f -print0 | while IFS= read -r -d '' file_path; do
-  case "$file_path" in
-    "$APP_DIR/Contents/MacOS/"*)
-      echo "SKIP SIGN NUITKA RUNTIME: $file_path"
-      continue
-      ;;
-  esac
+if [ -d "$FRAMEWORKS_DST" ]; then
+  find "$FRAMEWORKS_DST" -type f -exec xattr -c {} + 2>/dev/null || true
+  find "$FRAMEWORKS_DST" -type d -exec xattr -c {} + 2>/dev/null || true
+fi
 
-  if file "$file_path" | grep -q "Mach-O"; then
-    echo "SIGN: $file_path"
-    chmod u+w "$file_path" || true
-    codesign --remove-signature "$file_path" 2>/dev/null || true
-    codesign --force --sign - --timestamp=none "$file_path"
+echo "==> Ad-hoc sign Mach-O files in SPICE/Frameworks only"
+
+for root in "$SPICE_DST" "$FRAMEWORKS_DST"; do
+  if [ ! -d "$root" ]; then
+    continue
   fi
+
+  find "$root" -type f -print0 | while IFS= read -r -d '' file_path; do
+    if file "$file_path" 2>/dev/null | grep -q "Mach-O"; then
+      echo "SIGN: $file_path"
+      chmod u+w "$file_path" || true
+      codesign --remove-signature "$file_path" 2>/dev/null || true
+      codesign --force --sign - --timestamp=none "$file_path" || true
+    fi
+  done
 done
 
 echo "==> Do not codesign app bundle itself"
-
-# ВАЖНО:
-# Не делаем codesign --force "$APP_DIR", чтобы не трогать основной Nuitka/PySide runtime.
-# Для внутреннего unsigned/ad-hoc pkg этого достаточно.
+echo "==> Do not touch Contents/MacOS Nuitka/PySide runtime"
 
 echo "==> Check removed problematic GST plugins"
 
@@ -327,3 +335,6 @@ productbuild \
 echo "==> Done"
 
 ls -lh "$FINAL_PKG"
+
+echo "==> Final PKG payload preview"
+pkgutil --payload-files "$FINAL_PKG" | head -50

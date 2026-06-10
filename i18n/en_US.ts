@@ -4,22 +4,22 @@
 <context>
     <name>ApiClient</name>
     <message>
-        <location filename="../src/api/client.py" line="313"/>
+        <location filename="../src/api/client.py" line="320"/>
         <source>Server not found. Check the address.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/client.py" line="315"/>
+        <location filename="../src/api/client.py" line="322"/>
         <source>Connection refused by server.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/client.py" line="317"/>
+        <location filename="../src/api/client.py" line="324"/>
         <source>Request timed out.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/client.py" line="320"/>
+        <location filename="../src/api/client.py" line="326"/>
         <source>SSL certificate error. Check security settings.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -45,133 +45,134 @@
 <context>
     <name>AppWidget</name>
     <message>
-        <location filename="../main.py" line="240"/>
+        <location filename="../GorizontVS-VDI.py" line="241"/>
         <source>Switch language</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="244"/>
+        <location filename="../GorizontVS-VDI.py" line="245"/>
         <source>Toggle theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="248"/>
+        <location filename="../GorizontVS-VDI.py" line="249"/>
         <source>Preparing…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="250"/>
+        <location filename="../GorizontVS-VDI.py" line="251"/>
         <source>Back to login</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="324"/>
+        <location filename="../GorizontVS-VDI.py" line="325"/>
         <source>Profile</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="325"/>
+        <location filename="../GorizontVS-VDI.py" line="326"/>
         <source>Quick profile settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="326"/>
+        <location filename="../GorizontVS-VDI.py" line="327"/>
         <source>Interface language</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="327"/>
+        <location filename="../GorizontVS-VDI.py" line="328"/>
         <source>Color theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="328"/>
+        <location filename="../GorizontVS-VDI.py" line="329"/>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="329"/>
+        <location filename="../GorizontVS-VDI.py" line="330"/>
         <source>Logout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="330"/>
+        <location filename="../GorizontVS-VDI.py" line="331"/>
         <source>Light</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="331"/>
+        <location filename="../GorizontVS-VDI.py" line="332"/>
         <source>Dark</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="352"/>
+        <location filename="../GorizontVS-VDI.py" line="353"/>
         <source>Loading…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="393"/>
+        <location filename="../GorizontVS-VDI.py" line="394"/>
+        <location filename="../GorizontVS-VDI.py" line="404"/>
         <source>Signing in…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="402"/>
+        <location filename="../GorizontVS-VDI.py" line="417"/>
         <source>Loading services…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="414"/>
+        <location filename="../GorizontVS-VDI.py" line="429"/>
         <source>Loading images…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="424"/>
+        <location filename="../GorizontVS-VDI.py" line="438"/>
         <source>Failed to load workspace content. Please sign in again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="425"/>
-        <location filename="../main.py" line="438"/>
+        <location filename="../GorizontVS-VDI.py" line="440"/>
+        <location filename="../GorizontVS-VDI.py" line="453"/>
         <source>Loading error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="442"/>
+        <location filename="../GorizontVS-VDI.py" line="457"/>
         <source>Warning</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="489"/>
+        <location filename="../GorizontVS-VDI.py" line="503"/>
         <source>No transports available for this service.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="496"/>
+        <location filename="../GorizontVS-VDI.py" line="510"/>
         <source>Session expired. Please sign in again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="516"/>
+        <location filename="../GorizontVS-VDI.py" line="531"/>
         <source>Connecting…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="536"/>
+        <location filename="../GorizontVS-VDI.py" line="551"/>
         <source>Service is not ready</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="538"/>
+        <location filename="../GorizontVS-VDI.py" line="553"/>
         <source>Retry</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="539"/>
+        <location filename="../GorizontVS-VDI.py" line="554"/>
         <source>Cancel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../main.py" line="549"/>
+        <location filename="../GorizontVS-VDI.py" line="564"/>
         <source>Connection error</source>
         <translation type="unfinished"></translation>
     </message>
@@ -179,23 +180,23 @@
 <context>
     <name>AuthService</name>
     <message>
-        <location filename="../src/api/auth.py" line="186"/>
+        <location filename="../src/api/auth.py" line="232"/>
         <source>Server returned no authenticators</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/auth.py" line="199"/>
+        <location filename="../src/api/auth.py" line="245"/>
         <source>Unexpected server response</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/auth.py" line="205"/>
-        <location filename="../src/api/auth.py" line="226"/>
+        <location filename="../src/api/auth.py" line="252"/>
+        <location filename="../src/api/auth.py" line="276"/>
         <source>Invalid username or password</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/auth.py" line="213"/>
+        <location filename="../src/api/auth.py" line="260"/>
         <source>Server did not return an authorization token</source>
         <translation type="unfinished"></translation>
     </message>
@@ -211,80 +212,97 @@
 <context>
     <name>LoginController</name>
     <message>
-        <location filename="../src/login_controller.py" line="238"/>
-        <location filename="../src/login_controller.py" line="461"/>
-        <location filename="../src/login_controller.py" line="466"/>
+        <location filename="../src/login_controller.py" line="240"/>
+        <location filename="../src/login_controller.py" line="524"/>
+        <location filename="../src/login_controller.py" line="530"/>
         <source>Continue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="255"/>
-        <location filename="../src/login_controller.py" line="275"/>
-        <location filename="../src/login_controller.py" line="491"/>
-        <location filename="../src/login_controller.py" line="496"/>
+        <location filename="../src/login_controller.py" line="257"/>
+        <location filename="../src/login_controller.py" line="278"/>
+        <location filename="../src/login_controller.py" line="481"/>
+        <location filename="../src/login_controller.py" line="586"/>
         <source>Login</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="339"/>
+        <location filename="../src/login_controller.py" line="348"/>
         <source>The server url/token is not specified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="357"/>
+        <location filename="../src/login_controller.py" line="367"/>
         <source>Connection...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="371"/>
+        <location filename="../src/login_controller.py" line="385"/>
         <source>Select an authenticator</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="374"/>
+        <location filename="../src/login_controller.py" line="390"/>
+        <location filename="../src/login_controller.py" line="428"/>
+        <source>Signing in...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="399"/>
         <source>Enter the username</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="377"/>
-        <location filename="../src/login_controller.py" line="395"/>
+        <location filename="../src/login_controller.py" line="402"/>
+        <location filename="../src/login_controller.py" line="435"/>
         <source>Enter password</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="385"/>
-        <location filename="../src/login_controller.py" line="403"/>
+        <location filename="../src/login_controller.py" line="408"/>
+        <source>Enter username and password, or leave both fields empty for automatic login</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="415"/>
+        <location filename="../src/login_controller.py" line="439"/>
         <source>Log in...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="432"/>
+        <location filename="../src/login_controller.py" line="475"/>
+        <location filename="../src/login_controller.py" line="476"/>
+        <source>Leave empty for automatic login</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="491"/>
         <source>Delete profile</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="433"/>
+        <location filename="../src/login_controller.py" line="492"/>
         <source>Delete profile &quot;{display_label}&quot;?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="436"/>
+        <location filename="../src/login_controller.py" line="495"/>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="437"/>
+        <location filename="../src/login_controller.py" line="496"/>
         <source>Cancel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="468"/>
+        <location filename="../src/login_controller.py" line="532"/>
         <source>Connection error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="493"/>
-        <location filename="../src/login_controller.py" line="498"/>
+        <location filename="../src/login_controller.py" line="583"/>
+        <location filename="../src/login_controller.py" line="588"/>
         <source>Login failed</source>
         <translation type="unfinished"></translation>
     </message>
@@ -371,22 +389,22 @@
 <context>
     <name>ServiceInfo</name>
     <message>
-        <location filename="../src/api/services.py" line="62"/>
+        <location filename="../src/api/services.py" line="61"/>
         <source>In maintenance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/services.py" line="64"/>
+        <location filename="../src/api/services.py" line="63"/>
         <source>Unavailable</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/services.py" line="66"/>
+        <location filename="../src/api/services.py" line="65"/>
         <source>In use</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/api/services.py" line="68"/>
+        <location filename="../src/api/services.py" line="66"/>
         <source>Available</source>
         <translation type="unfinished"></translation>
     </message>
@@ -402,37 +420,37 @@
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/settings_page.py" line="63"/>
+        <location filename="../src/settings_page.py" line="62"/>
         <source>Workspace Configuration</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings_page.py" line="66"/>
+        <location filename="../src/settings_page.py" line="65"/>
         <source>Authentication</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings_page.py" line="69"/>
+        <location filename="../src/settings_page.py" line="68"/>
         <source>Workspace Authentication</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings_page.py" line="72"/>
+        <location filename="../src/settings_page.py" line="71"/>
         <source>Choose how users sign in to the workspace.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings_page.py" line="77"/>
+        <location filename="../src/settings_page.py" line="76"/>
         <source>Default settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings_page.py" line="80"/>
+        <location filename="../src/settings_page.py" line="79"/>
         <source>Configuration saved</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/settings_page.py" line="83"/>
+        <location filename="../src/settings_page.py" line="82"/>
         <source>The selected authentication method is saved automatically.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -473,7 +491,7 @@
 <context>
     <name>TransportExecutor</name>
     <message>
-        <location filename="../src/transport/executor.py" line="220"/>
+        <location filename="../src/transport/executor.py" line="216"/>
         <source>Transport script signature verification failed.
 Contact your administrator.</source>
         <translation type="unfinished"></translation>
