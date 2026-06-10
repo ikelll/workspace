@@ -22,6 +22,7 @@ PKGROOT="$BUILD_DIR/pkgroot"
 APP_INSTALL_DIR="$PKGROOT/Applications"
 
 COMPONENT_PKG="$BUILD_DIR/component.pkg"
+COMPONENT_PLIST="$BUILD_DIR/component.plist"
 
 GIT_SHA_SHORT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 RUN_ID="${GITHUB_RUN_NUMBER:-local}"
@@ -44,6 +45,10 @@ if [ -e "$APP_DIR/Contents/MacOS/${APP_NAME}.real" ]; then
   ls -la "$APP_DIR/Contents/MacOS"
   exit 1
 fi
+
+echo "==> Save main binary hash before packaging changes"
+MAIN_BIN_SHA_BEFORE="$(shasum -a 256 "$APP_BIN" | awk '{print $1}')"
+echo "MAIN_BIN_SHA_BEFORE=$MAIN_BIN_SHA_BEFORE"
 
 echo "==> Prepare app internal directories"
 mkdir -p "$SPICE_DST"
@@ -167,6 +172,14 @@ fi
 
 echo "==> Keep Nuitka/PySide runtime untouched"
 
+# ВАЖНО:
+# Не удаляем Qt/Python из Contents/MacOS или Contents/Frameworks.
+# Не переименовываем Contents/MacOS/GorizontVS-VDI.
+# Не создаём wrapper.
+# Не создаём GorizontVS-VDI.real.
+# Не подписываем основной app bundle.
+# Не подписываем и не трогаем Contents/MacOS/*.
+
 echo "==> Patch Info.plist"
 
 PLIST="$APP_DIR/Contents/Info.plist"
@@ -213,25 +226,12 @@ if [ -d "$FRAMEWORKS_DST" ]; then
   find "$FRAMEWORKS_DST" -type d -exec xattr -c {} + 2>/dev/null || true
 fi
 
-echo "==> Ad-hoc sign Mach-O files in SPICE/Frameworks only"
+echo "==> Do not ad-hoc sign anything in build_pkg.sh"
 
-for root in "$SPICE_DST" "$FRAMEWORKS_DST"; do
-  if [ ! -d "$root" ]; then
-    continue
-  fi
-
-  find "$root" -type f -print0 | while IFS= read -r -d '' file_path; do
-    if file "$file_path" 2>/dev/null | grep -q "Mach-O"; then
-      echo "SIGN: $file_path"
-      chmod u+w "$file_path" || true
-      codesign --remove-signature "$file_path" 2>/dev/null || true
-      codesign --force --sign - --timestamp=none "$file_path" || true
-    fi
-  done
-done
-
-echo "==> Do not codesign app bundle itself"
-echo "==> Do not touch Contents/MacOS Nuitka/PySide runtime"
+# ВАЖНО:
+# Никакого codesign здесь.
+# Подпись меняет Mach-O хэши. Для диагностики Transport signature INVALID
+# основной бинарь должен остаться byte-to-byte как после pyside6-deploy.
 
 echo "==> Check removed problematic GST plugins"
 
@@ -270,6 +270,18 @@ if [ "$bad_homebrew" -eq 1 ]; then
   exit 1
 fi
 
+echo "==> Verify main binary hash after app modifications"
+
+MAIN_BIN_SHA_AFTER="$(shasum -a 256 "$APP_BIN" | awk '{print $1}')"
+echo "MAIN_BIN_SHA_AFTER=$MAIN_BIN_SHA_AFTER"
+
+if [ "$MAIN_BIN_SHA_BEFORE" != "$MAIN_BIN_SHA_AFTER" ]; then
+  echo "ERROR: main Nuitka binary was modified during packaging"
+  echo "before: $MAIN_BIN_SHA_BEFORE"
+  echo "after:  $MAIN_BIN_SHA_AFTER"
+  exit 1
+fi
+
 echo "==> Final app structure before pkgroot copy"
 
 ls -la "$APP_DIR/Contents/MacOS"
@@ -294,6 +306,19 @@ rsync -a --delete \
 test -d "$APP_INSTALL_DIR/$APP_BUNDLE"
 test -x "$APP_INSTALL_DIR/$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
+echo "==> Verify main binary hash after pkgroot copy"
+
+APP_BIN_IN_PKGROOT="$APP_INSTALL_DIR/$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+MAIN_BIN_SHA_PKGROOT="$(shasum -a 256 "$APP_BIN_IN_PKGROOT" | awk '{print $1}')"
+echo "MAIN_BIN_SHA_PKGROOT=$MAIN_BIN_SHA_PKGROOT"
+
+if [ "$MAIN_BIN_SHA_BEFORE" != "$MAIN_BIN_SHA_PKGROOT" ]; then
+  echo "ERROR: main Nuitka binary was modified during pkgroot copy"
+  echo "before:  $MAIN_BIN_SHA_BEFORE"
+  echo "pkgroot: $MAIN_BIN_SHA_PKGROOT"
+  exit 1
+fi
+
 echo "==> Payload app path:"
 ls -la "$APP_INSTALL_DIR"
 ls -la "$APP_INSTALL_DIR/$APP_BUNDLE/Contents/MacOS"
@@ -301,8 +326,45 @@ ls -la "$APP_INSTALL_DIR/$APP_BUNDLE/Contents/MacOS"
 echo "==> Payload files preview:"
 find "$PKGROOT" -maxdepth 4 -type f | sort | head -200
 
+echo "==> Analyze component plist"
+
+pkgbuild --analyze \
+  --root "$PKGROOT" \
+  "$COMPONENT_PLIST"
+
+echo "==> Disable bundle relocation"
+
+# ВАЖНО:
+# Без этого installer может найти старую .app в ~/developer/workspace/dist
+# и обновить её там вместо /Applications.
+python3 - "$COMPONENT_PLIST" <<'PY'
+import plistlib
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+
+with path.open("rb") as f:
+    data = plistlib.load(f)
+
+if not isinstance(data, list):
+    raise SystemExit("component plist is not a list")
+
+for item in data:
+    if isinstance(item, dict):
+        item["BundleIsRelocatable"] = False
+        item["BundleOverwriteAction"] = "upgrade"
+
+with path.open("wb") as f:
+    plistlib.dump(data, f, sort_keys=False)
+PY
+
+echo "==> Component plist:"
+cat "$COMPONENT_PLIST"
+
 pkgbuild \
   --root "$PKGROOT" \
+  --component-plist "$COMPONENT_PLIST" \
   --scripts "$ROOT_DIR/ci/macos" \
   --identifier "$PKG_IDENTIFIER" \
   --version "$APP_VERSION" \
@@ -337,4 +399,4 @@ echo "==> Done"
 ls -lh "$FINAL_PKG"
 
 echo "==> Final PKG payload preview"
-pkgutil --payload-files "$FINAL_PKG" | head -50
+pkgutil --payload-files "$FINAL_PKG" | head -80
