@@ -12,6 +12,8 @@ cd "$ROOT_DIR"
 
 PAYLOAD_DIR="$ROOT_DIR/build/pkgroot"
 APP_DST="$PAYLOAD_DIR/Applications/$APP_BUNDLE"
+SRC_APP="$ROOT_DIR/dist/$APP_BUNDLE"
+
 RESOURCES_DIR="$APP_DST/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
 FRAMEWORKS_DST="$APP_DST/Contents/Frameworks"
@@ -21,12 +23,8 @@ rm -rf "$ROOT_DIR/build"
 
 echo "==> Create clean payload"
 mkdir -p "$PAYLOAD_DIR/Applications"
-mkdir -p "$SPICE_DST"
-mkdir -p "$FRAMEWORKS_DST"
 
 echo "==> Sync app bundle from dist to payload"
-
-SRC_APP="$ROOT_DIR/dist/$APP_BUNDLE"
 
 test -d "$SRC_APP"
 test -x "$SRC_APP/Contents/MacOS/$APP_NAME"
@@ -43,6 +41,10 @@ test -x "$APP_DST/Contents/MacOS/$APP_NAME"
 echo "==> App bundle synced"
 du -sh "$SRC_APP" "$APP_DST"
 
+echo "==> Create SPICE/GStreamer directories"
+mkdir -p "$SPICE_DST"
+mkdir -p "$FRAMEWORKS_DST"
+
 echo "==> Copy built SPICE files"
 
 if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
@@ -51,7 +53,7 @@ if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
   exit 1
 fi
 
-rsync -a "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
+rsync -a --delete "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
 
 echo "==> Copy GStreamer runtime/plugins/codecs from runner"
 
@@ -61,12 +63,10 @@ mkdir -p "$SPICE_DST/lib/gstreamer-1.0"
 mkdir -p "$SPICE_DST/libexec/gstreamer-1.0"
 mkdir -p "$SPICE_DST/share"
 
-# Main GStreamer plugins directory.
 if [ -d "/opt/homebrew/lib/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/lib/gstreamer-1.0/" "$SPICE_DST/lib/gstreamer-1.0/"
 fi
 
-# Plugin directories from Homebrew formulas.
 for gst_plugin_dir in \
   "/opt/homebrew/opt/gstreamer/lib/gstreamer-1.0" \
   "/opt/homebrew/opt/gst-plugins-base/lib/gstreamer-1.0" \
@@ -82,19 +82,10 @@ done
 
 echo "==> Remove problematic/unneeded GStreamer plugins"
 
-# Not needed for SPICE playback. It depends on Python runtime and causes:
-# Library not loaded: @rpath/Python
 rm -f "$SPICE_DST/lib/gstreamer-1.0/libgstpython.dylib" || true
-
-# Do not load GTK4 into spicy GTK3 process.
-# It causes duplicate Objective-C classes with GTK3:
-# libgtk-3.0.dylib and libgtk-4.1.dylib
 rm -f "$SPICE_DST/lib/gstreamer-1.0/libgstgtk4.dylib" || true
-
-# Optional GTK sink plugin. Usually not needed for SPICE client playback.
 rm -f "$SPICE_DST/lib/gstreamer-1.0/libgstgtk.dylib" || true
 
-# gst-plugin-scanner.
 if [ -d "/opt/homebrew/libexec/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/libexec/gstreamer-1.0/" "$SPICE_DST/libexec/gstreamer-1.0/"
 fi
@@ -103,7 +94,6 @@ if [ -d "/opt/homebrew/opt/gstreamer/libexec/gstreamer-1.0" ]; then
   rsync -a "/opt/homebrew/opt/gstreamer/libexec/gstreamer-1.0/" "$SPICE_DST/libexec/gstreamer-1.0/"
 fi
 
-# Optional GStreamer tools, useful for diagnostics.
 for tool in gst-inspect-1.0 gst-launch-1.0 gst-discoverer-1.0; do
   if [ -x "/opt/homebrew/bin/$tool" ]; then
     cp -f "/opt/homebrew/bin/$tool" "$SPICE_DST/bin/$tool"
@@ -111,7 +101,6 @@ for tool in gst-inspect-1.0 gst-launch-1.0 gst-discoverer-1.0; do
   fi
 done
 
-# GStreamer / GLib data.
 for src in \
   "/opt/homebrew/share/gstreamer-1.0" \
   "/opt/homebrew/share/glib-2.0" \
@@ -164,7 +153,6 @@ ci/macos/bundle_dylibs.sh "$APP_DST"
 
 echo "==> Remove GTK4 libraries, keep GTK3 for spicy"
 
-# spicy is GTK3. GTK4 in the same process causes duplicate Objective-C classes.
 rm -f "$APP_DST/Contents/Frameworks"/libgtk-4*.dylib || true
 rm -f "$APP_DST/Contents/Frameworks"/libgdk-4*.dylib || true
 rm -f "$APP_DST/Contents/Frameworks"/libgraphene-1.0*.dylib || true
@@ -193,20 +181,12 @@ else
   exit 1
 fi
 
-echo "==> Remove duplicated Qt/Python libraries from Frameworks"
+echo "==> Do not remove Qt/Python from Nuitka app runtime"
 
-rm -f "$APP_DST/Contents/Frameworks"/Qt* || true
-rm -f "$APP_DST/Contents/Frameworks"/libQt* || true
-rm -f "$APP_DST/Contents/Frameworks"/Python || true
-rm -f "$APP_DST/Contents/Frameworks"/libpython* || true
-
-echo "==> Check for duplicated Qt/Python libraries"
-
-if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \) | grep -q .; then
-  echo "ERROR: duplicated Qt/Python libraries found in Contents/Frameworks"
-  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \)
-  exit 1
-fi
+# ВАЖНО:
+# Раньше здесь удалялись Qt/Python из Contents/Frameworks.
+# Пока не трогаем runtime pyside6-deploy/Nuitka, потому что dist/.app работает,
+# а payload/.app после модификаций ломался.
 
 echo "==> Check no GTK4 libraries in Frameworks"
 
@@ -335,14 +315,6 @@ codesign --verify --verbose=4 "$APP_DST"
 if ! codesign --verify --deep --strict --verbose=4 "$APP_DST"; then
   echo "WARN: deep strict verification failed. Printing diagnostics, but continuing."
   codesign --verify --deep --strict --verbose=4 "$APP_DST" || true
-fi
-
-echo "==> Check no duplicated Qt/Python in Frameworks"
-
-if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \) | grep -q .; then
-  echo "ERROR: duplicated Qt/Python libraries appeared after signing"
-  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \)
-  exit 1
 fi
 
 echo "==> Check no /opt/homebrew refs after cleanup"

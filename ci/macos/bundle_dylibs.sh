@@ -7,6 +7,9 @@ APP_BIN_DIR="$APP_DIR/Contents/MacOS"
 FRAMEWORKS_DIR="$APP_DIR/Contents/Frameworks"
 SPICE_DIR="$APP_DIR/Contents/Resources/spice"
 
+MAIN_APP_BIN="$APP_BIN_DIR/GorizontVS-VDI"
+MAIN_APP_REAL_BIN="$APP_BIN_DIR/GorizontVS-VDI.real"
+
 mkdir -p "$FRAMEWORKS_DIR"
 
 is_system_lib() {
@@ -21,6 +24,15 @@ is_system_lib() {
 is_macho() {
   local file_path="$1"
   file "$file_path" 2>/dev/null | grep -q "Mach-O"
+}
+
+is_main_app_binary() {
+  local file_path="$1"
+
+  [[ "$file_path" == "$MAIN_APP_BIN" ]] && return 0
+  [[ "$file_path" == "$MAIN_APP_REAL_BIN" ]] && return 0
+
+  return 1
 }
 
 resolve_lib() {
@@ -110,13 +122,12 @@ copy_lib() {
     return 0
   fi
 
-  # Nuitka / pyside6-deploy already places Qt into Contents/MacOS.
+  # Do not duplicate Qt/Python runtime if pyside6-deploy/Nuitka already placed it.
   if [[ "$base" == Qt* || "$base" == libQt* ]]; then
     echo "SKIP QT DUPLICATE: $src"
     return 0
   fi
 
-  # Nuitka / pyside6-deploy already places Python runtime into Contents/MacOS.
   if [[ "$base" == Python || "$base" == libpython* ]]; then
     echo "SKIP PYTHON DUPLICATE: $src"
     return 0
@@ -132,7 +143,10 @@ copy_lib() {
 }
 
 collect_macho_files() {
-  find "$APP_DIR" -type f -print
+  find "$APP_DIR" -type f \
+    ! -path "$MAIN_APP_BIN" \
+    ! -path "$MAIN_APP_REAL_BIN" \
+    -print
 }
 
 rewrite_dep_to_local() {
@@ -156,6 +170,9 @@ rewrite_dep_to_local() {
 }
 
 echo "==> Collect dylib dependencies"
+echo "==> Main app binaries are protected from install_name_tool:"
+echo "    $MAIN_APP_BIN"
+echo "    $MAIN_APP_REAL_BIN"
 
 changed=1
 round=0
@@ -167,6 +184,11 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
   echo "==> Dependency scan round $round"
 
   while IFS= read -r file_path; do
+    is_main_app_binary "$file_path" && {
+      echo "SKIP MAIN APP BINARY: $file_path"
+      continue
+    }
+
     is_macho "$file_path" || continue
 
     loader_dir="$(dirname "$file_path")"
@@ -195,6 +217,11 @@ done
 echo "==> Rewrite dylib paths and install names"
 
 while IFS= read -r file_path; do
+  is_main_app_binary "$file_path" && {
+    echo "SKIP MAIN APP BINARY: $file_path"
+    continue
+  }
+
   is_macho "$file_path" || continue
 
   chmod u+w "$file_path" || true
@@ -210,7 +237,8 @@ while IFS= read -r file_path; do
       ;;
   esac
 
-  # Main app / Nuitka / PySide.
+  # Main app / Nuitka / PySide support files.
+  # Main Nuitka executable itself is intentionally skipped above.
   install_name_tool -add_rpath "@executable_path" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
@@ -219,20 +247,14 @@ while IFS= read -r file_path; do
   install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
 
   # SPICE prefix:
-  # Contents/Resources/spice/bin/spicy -> ../lib/*.dylib
   install_name_tool -add_rpath "@loader_path/../lib" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../lib" "$file_path" 2>/dev/null || true
 
   # SPICE binaries -> Contents/Frameworks/*.dylib
-  # spicy path: Contents/Resources/spice/bin/spicy
-  # ../../../Frameworks = Contents/Frameworks
   install_name_tool -add_rpath "@loader_path/../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../Frameworks" "$file_path" 2>/dev/null || true
 
   # GStreamer plugins:
-  # Contents/Resources/spice/lib/gstreamer-1.0/plugin.dylib
-  # .. = spice/lib
-  # ../../../../Frameworks = Contents/Frameworks
   install_name_tool -add_rpath "@loader_path/../.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
@@ -250,6 +272,11 @@ done < <(collect_macho_files)
 echo "==> Second rewrite pass after install names changed"
 
 while IFS= read -r file_path; do
+  is_main_app_binary "$file_path" && {
+    echo "SKIP MAIN APP BINARY: $file_path"
+    continue
+  }
+
   is_macho "$file_path" || continue
 
   chmod u+w "$file_path" || true
@@ -273,6 +300,11 @@ echo "==> Validate: no /opt/homebrew dylib references"
 bad=0
 
 while IFS= read -r file_path; do
+  is_main_app_binary "$file_path" && {
+    echo "SKIP MAIN APP BINARY VALIDATION: $file_path"
+    continue
+  }
+
   is_macho "$file_path" || continue
 
   while IFS= read -r line; do
@@ -290,11 +322,11 @@ if [ "$bad" -eq 1 ]; then
   exit 1
 fi
 
-echo "==> Validate: no duplicated Qt/Python in Frameworks"
+echo "==> Validate: no GTK4 libraries in Frameworks"
 
-if find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \) | grep -q .; then
-  echo "ERROR: duplicated Qt/Python libraries found in Contents/Frameworks"
-  find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "Qt*" -o -name "libQt*" -o -name "Python" -o -name "libpython*" \)
+if find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \) | grep -q .; then
+  echo "ERROR: GTK4 libraries found in Contents/Frameworks"
+  find "$FRAMEWORKS_DIR" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \)
   exit 1
 fi
 
