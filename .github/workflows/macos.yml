@@ -201,7 +201,7 @@ jobs:
           chmod +x ci/macos/postinstall
 
           ci/macos/build_pkg.sh
-
+          
       - name: Verify PKG
         shell: bash
         run: |
@@ -223,7 +223,7 @@ jobs:
           pkgutil --payload-files build/component.pkg | head -300
 
           echo "=== MUST CONTAIN Applications/GorizontVS-VDI.app ==="
-          if ! pkgutil --payload-files "$PKG_FILE" | grep -q '^Applications/GorizontVS-VDI.app'; then
+          if ! pkgutil --payload-files "$PKG_FILE" | grep -Eq '^\./Applications/GorizontVS-VDI\.app$|^Applications/GorizontVS-VDI\.app$'; then
             echo "ERROR: final pkg does not install to /Applications/GorizontVS-VDI.app"
             echo "=== Actual payload start ==="
             pkgutil --payload-files "$PKG_FILE" | head -100
@@ -231,7 +231,7 @@ jobs:
           fi
 
           echo "=== MUST CONTAIN main executable ==="
-          if ! pkgutil --payload-files "$PKG_FILE" | grep -q '^Applications/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI$'; then
+          if ! pkgutil --payload-files "$PKG_FILE" | grep -Eq '^\./Applications/GorizontVS-VDI\.app/Contents/MacOS/GorizontVS-VDI$|^Applications/GorizontVS-VDI\.app/Contents/MacOS/GorizontVS-VDI$'; then
             echo "ERROR: final pkg does not contain main executable at expected path"
             pkgutil --payload-files "$PKG_FILE" | grep 'GorizontVS-VDI' | head -100
             exit 1
