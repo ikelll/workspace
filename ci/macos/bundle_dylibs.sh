@@ -97,6 +97,60 @@ resolve_lib() {
     return
   fi
 
+  if [[ "$lib" == /opt/homebrew/* ]]; then
+    local lib_base
+    lib_base="$(basename "$lib")"
+
+    for base in \
+      "$(dirname "$lib")" \
+      "/opt/homebrew/lib" \
+      "/opt/homebrew/opt/gstreamer/lib" \
+      "/opt/homebrew/opt/glib/lib" \
+      "/opt/homebrew/opt/gettext/lib" \
+      "/opt/homebrew/opt/openssl@3/lib" \
+      "/opt/homebrew/opt/krb5/lib" \
+      "/opt/homebrew/opt/cyrus-sasl/lib" \
+      "/opt/homebrew/opt/jpeg-turbo/lib" \
+      "/opt/homebrew/opt/opus/lib" \
+      "/opt/homebrew/opt/phodav/lib" \
+      "/opt/homebrew/opt/pixman/lib" \
+      "/opt/homebrew/opt/libusb/lib" \
+      "/opt/homebrew/opt/ffmpeg/lib" \
+      "/opt/homebrew/opt/x264/lib" \
+      "/opt/homebrew/opt/x265/lib" \
+      "/opt/homebrew/opt/aom/lib" \
+      "/opt/homebrew/opt/dav1d/lib" \
+      "/opt/homebrew/opt/libvpx/lib" \
+      "/opt/homebrew/opt/svt-av1/lib" \
+      "/opt/homebrew/opt/libogg/lib" \
+      "/opt/homebrew/opt/libvorbis/lib" \
+      "/opt/homebrew/opt/flac/lib" \
+      "/opt/homebrew/opt/lame/lib" \
+      "/opt/homebrew/opt/fdk-aac/lib" \
+      "/opt/homebrew/opt/libass/lib" \
+      "/opt/homebrew/opt/libpng/lib" \
+      "/opt/homebrew/opt/webp/lib" \
+      "/opt/homebrew/opt/jpeg-xl/lib"
+    do
+      if [ -f "$base/$lib_base" ]; then
+        echo "$base/$lib_base"
+        return
+      fi
+    done
+
+    found="$(
+      find /opt/homebrew/opt /opt/homebrew/Cellar \
+        -type f \
+        -name "$lib_base" \
+        2>/dev/null | head -n 1 || true
+    )"
+
+    if [ -n "$found" ] && [ -f "$found" ]; then
+      echo "$found"
+      return
+    fi
+  fi
+
   echo "$lib"
 }
 
@@ -108,10 +162,12 @@ copy_lib() {
   local base
   base="$(basename "$src")"
 
+  # GStreamer plugins already live in Resources/spice/lib/gstreamer-1.0.
   if [[ "$src" == *"/lib/gstreamer-1.0/"* ]]; then
     return 0
   fi
 
+  # Do not duplicate Qt/Python from Nuitka/PySide runtime.
   if [[ "$base" == Qt* || "$base" == libQt* ]]; then
     echo "SKIP QT DUPLICATE: $src"
     return 0
@@ -124,18 +180,29 @@ copy_lib() {
 
   local dst="$FRAMEWORKS_DIR/$base"
 
-  if [ ! -f "$dst" ]; then
-    echo "COPY: $src -> $dst"
-    cp -L "$src" "$dst"
+  # ВАЖНО:
+  # Перезаписываем уже существующую dylib, иначе может остаться старая
+  # библиотека с install name /opt/homebrew/...
+  if [ -f "$dst" ]; then
+    echo "REPLACE EXISTING LIB: $dst <- $src"
     chmod u+w "$dst" || true
+    rm -f "$dst"
+  else
+    echo "COPY: $src -> $dst"
   fi
+
+  cp -L "$src" "$dst"
+  chmod u+w "$dst" || true
 }
 
 collect_macho_files() {
   # ВАЖНО:
-  # Обрабатываем только SPICE/GStreamer subtree.
-  # Основной Nuitka/PySide app runtime в Contents/MacOS вообще не трогаем.
-  find "$SPICE_DIR" -type f -print
+  # Обрабатываем только SPICE/GStreamer и скопированные dylib в Frameworks.
+  # Основной Nuitka/PySide runtime в Contents/MacOS вообще не трогаем.
+  {
+    find "$SPICE_DIR" -type f -print
+    find "$FRAMEWORKS_DIR" -type f -print
+  } | sort -u
 }
 
 rewrite_dep_to_local() {
@@ -158,7 +225,7 @@ rewrite_dep_to_local() {
   fi
 }
 
-echo "==> Bundle dylib dependencies for SPICE subtree only"
+echo "==> Bundle dylib dependencies for SPICE + Frameworks only"
 echo "APP_DIR=$APP_DIR"
 echo "SPICE_DIR=$SPICE_DIR"
 echo "FRAMEWORKS_DIR=$FRAMEWORKS_DIR"
@@ -201,10 +268,15 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
   done < <(collect_macho_files)
 done
 
-echo "==> Rewrite dylib paths and install names for SPICE subtree only"
+echo "==> Rewrite dylib paths and install names for SPICE + Frameworks only"
 
 while IFS= read -r file_path; do
   is_macho "$file_path" || continue
+
+  if [ "$file_path" = "$MAIN_APP_BIN" ]; then
+    echo "ERROR: main app binary reached rewrite loop unexpectedly: $file_path"
+    exit 1
+  fi
 
   chmod u+w "$file_path" || true
 
@@ -235,6 +307,11 @@ while IFS= read -r file_path; do
   install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
 
+  # Frameworks dylib -> same directory / app Frameworks
+  install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/." "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
+
   while IFS= read -r line; do
     dep="$(echo "$line" | awk '{print $1}')"
 
@@ -245,10 +322,15 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Second rewrite pass for /opt/homebrew refs in SPICE subtree only"
+echo "==> Second rewrite pass for /opt/homebrew refs"
 
 while IFS= read -r file_path; do
   is_macho "$file_path" || continue
+
+  if [ "$file_path" = "$MAIN_APP_BIN" ]; then
+    echo "ERROR: main app binary reached second rewrite loop unexpectedly: $file_path"
+    exit 1
+  fi
 
   chmod u+w "$file_path" || true
 
@@ -266,12 +348,17 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Validate: no /opt/homebrew refs in SPICE subtree"
+echo "==> Validate: no /opt/homebrew refs in SPICE + Frameworks"
 
 bad=0
 
 while IFS= read -r file_path; do
   is_macho "$file_path" || continue
+
+  if [ "$file_path" = "$MAIN_APP_BIN" ]; then
+    echo "ERROR: main app binary reached validation unexpectedly: $file_path"
+    exit 1
+  fi
 
   while IFS= read -r line; do
     dep="$(echo "$line" | awk '{print $1}')"
@@ -284,11 +371,11 @@ while IFS= read -r file_path; do
 done < <(collect_macho_files)
 
 if [ "$bad" -eq 1 ]; then
-  echo "ERROR: unresolved /opt/homebrew dependencies found in SPICE subtree"
+  echo "ERROR: unresolved /opt/homebrew dependencies found in SPICE/Frameworks"
   exit 1
 fi
 
-echo "==> Validate: main app binary was not renamed"
+echo "==> Validate: main app binary was not renamed/touched"
 
 if [ ! -x "$MAIN_APP_BIN" ]; then
   echo "ERROR: main app binary missing or not executable: $MAIN_APP_BIN"
@@ -300,4 +387,4 @@ if [ -e "$APP_BIN_DIR/${APP_NAME}.real" ]; then
   exit 1
 fi
 
-echo "==> Dylib bundle OK for SPICE subtree only"
+echo "==> Dylib bundle OK for SPICE + Frameworks only"
