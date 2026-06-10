@@ -1,5 +1,5 @@
-PREFIX ?= /opt/homebrew
-DESTDIR ?= ../../build/spice
+PREFIX ?= /usr
+DESTDIR ?= /opt/build/spice
 BUILD_DIR ?= build
 
 .PHONY: all alt usbredir spice-protocol spice spice-gtk install clean
@@ -11,22 +11,23 @@ usbredir:
 	cd usbredir && \
         rm -rf $(BUILD_DIR) && \
         meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-        ninja -C $(BUILD_DIR) install
-
+        ninja -C $(BUILD_DIR) && \
+        ninja -C $(BUILD_DIR) install && \
+        DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install 
 
 spice-protocol:
 	cd spice-protocol && \
         rm -rf $(BUILD_DIR) && \
         meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-        ninja -C $(BUILD_DIR) install 
-
+        ninja -C $(BUILD_DIR) && \
+        ninja -C $(BUILD_DIR) install
 
 spice:
 	cd spice && \
         rm -rf $(BUILD_DIR) && \
-        CXXFLAGS="-D_LIBCPP_HARDENING_MODE=none" meson setup $(BUILD_DIR) --prefix=$(PREFIX)  -Dcpp_std=gnu++17  -Dtests=false && \
-        ninja -C $(BUILD_DIR) install  
-
+        meson setup $(BUILD_DIR) --prefix=$(PREFIX) -Dtests=false && \
+        ninja -C $(BUILD_DIR) && \
+        ninja -C $(BUILD_DIR) install
 
 spice-gtk:
 	cd spice-gtk && \
@@ -38,7 +39,7 @@ spice-gtk:
 	msgfmt ru.po -o spice-gtk.mo && \
 	cd .. && \
 	cp po/spice-gtk.mo build/po/ru/LC_MESSAGES/ && \
-	cp po/spice-gtk.mo ../build/spice/usr/share/locale/ru/LC_MESSAGES/ && \
+	cp po/spice-gtk.mo /opt/build/build/usr/share/locale/ru/LC_MESSAGES/ && \
 	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install
 
 
@@ -86,9 +87,7 @@ install:
 	@echo "✅ Всё собрано и установлено в: $(DESTDIR)"
 
 check:
-	echo "YEEEEEEEEEEEEEEEEEEEEEES"
-
-	#chmod u+s /opt/build/spice/usr/libexec/spice-client-glib-usb-acl-helper
+	chmod u+s /opt/build/spice/usr/libexec/spice-client-glib-usb-acl-helper
 
 clean:
 	rm -rf */$(BUILD_DIR)

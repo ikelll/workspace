@@ -19,6 +19,7 @@ plugins = iconengines,imageformats,platforminputcontexts,styles
 [nuitka]
 mode = onefile
 extra_args = 
+	--windows-console-mode=force
 	--quiet
 	--noinclude-qt-translations
 	--include-package=spnego
