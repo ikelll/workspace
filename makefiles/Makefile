@@ -1,142 +1,94 @@
-# Makefile (fixed)
-#
-# Two clean modes:
-# 1) Direct install into PREFIX (default):         make all          (uses sudo for install)
-# 2) Staging install for packaging (DESTDIR root): make stage DESTDIR=/tmp/pkgroot
-#
-# Notes:
-# - NEVER set DESTDIR equal to PREFIX. That creates PREFIX/PREFIX/... like /opt/spice/opt/spice.
-# - We do exactly ONE install per project per build.
-# - You can override PREFIX, BUILD_DIR, DESTDIR from CLI.
-
-PREFIX    ?= /opt/spice
+PREFIX ?= /opt/homebrew
+DESTDIR ?= ../../build/spice
 BUILD_DIR ?= build
 
-# Empty by default => direct install into PREFIX
-DESTDIR   ?=
-
-# Use sudo for direct install, but do NOT use sudo for staging installs.
-# (You normally want staged files owned by the build user.)
-ifeq ($(strip $(DESTDIR)),)
-  INSTALL_CMD = sudo ninja -C $(BUILD_DIR) install
-else
-  INSTALL_CMD = DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install
-endif
-
-.PHONY: all usbredir spice-protocol spice spice-gtk stage install check clean alt help
-
-help:
-	@echo "Targets:"
-	@echo "  make all                 - build + install everything into PREFIX (default: /opt/spice)"
-	@echo "  make stage DESTDIR=...    - build + install into staging root (e.g. /tmp/pkgroot)"
-	@echo "  make clean               - remove all build dirs"
-	@echo "Vars:"
-	@echo "  PREFIX=/opt/spice BUILD_DIR=build DESTDIR= (empty for direct install)"
-	@echo "Examples:"
-	@echo "  make all PREFIX=/opt/spice"
-	@echo "  make stage PREFIX=/opt/spice DESTDIR=/tmp/spice-root"
+.PHONY: all alt usbredir spice-protocol spice spice-gtk install clean
 
 all: usbredir spice-protocol spice spice-gtk check install
-
-# "stage" is the same as all, but requires DESTDIR to be set (safety)
-stage:
-	@if [ -z "$(strip $(DESTDIR))" ]; then \
-		echo "ERROR: stage requires DESTDIR. Example: make stage DESTDIR=/tmp/pkgroot"; \
-		exit 2; \
-	fi
-	@$(MAKE) all
+alt: alt-usb alt-protocol alt-spice alt-gtk
 
 usbredir:
 	cd usbredir && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD)
+        rm -rf $(BUILD_DIR) && \
+        meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
+        ninja -C $(BUILD_DIR) install
+
 
 spice-protocol:
 	cd spice-protocol && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD)
+        rm -rf $(BUILD_DIR) && \
+        meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
+        ninja -C $(BUILD_DIR) install 
+
 
 spice:
 	cd spice && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) --prefix=$(PREFIX) -Dtests=false -Dspice-common:tests=false && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD)
+        rm -rf $(BUILD_DIR) && \
+        CXXFLAGS="-D_LIBCPP_HARDENING_MODE=none" meson setup $(BUILD_DIR) --prefix=$(PREFIX)  -Dcpp_std=gnu++17  -Dtests=false && \
+        ninja -C $(BUILD_DIR) install  
+
 
 spice-gtk:
 	cd spice-gtk && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) -Dsasl=disabled -Dusbredir=enabled --prefix=$(PREFIX) && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD) && \
-		cd po && \
-		msgfmt ru.po -o spice-gtk.mo && \
-		cd .. && \
-		cp po/spice-gtk.mo build/po/ru/LC_MESSAGES/
+	rm -rf $(BUILD_DIR) && \
+	meson setup $(BUILD_DIR) -Dwebdav=enabled -Dsmartcard=disabled -Dsasl=disabled -Dusbredir=enabled --prefix=$(PREFIX) && \
+	ninja -C $(BUILD_DIR) && \
+	ninja -C $(BUILD_DIR) install && \
+	cd po && \
+	msgfmt ru.po -o spice-gtk.mo && \
+	cd .. && \
+	cp po/spice-gtk.mo build/po/ru/LC_MESSAGES/ && \
+	cp po/spice-gtk.mo ../build/spice/usr/share/locale/ru/LC_MESSAGES/ && \
+	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install
 
-# Keep your original "alt" flow, but fix install semantics and avoid DESTDIR==PREFIX.
-# If you really need DESTDIR in alt, pass it explicitly when calling make alt.
-alt:
+
+alt-usb:
 	cd usbredir && \
-		mv meson.build.alt meson.build && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) -Dwerror=false --prefix=$(PREFIX) && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD)
+	cp meson.build.alt meson.build && \
+	rm -rf $(BUILD_DIR) && \
+	meson setup $(BUILD_DIR) -Dwerror=false --prefix=$(PREFIX) && \
+	ninja -C $(BUILD_DIR) && \
+	ninja -C $(BUILD_DIR) install && \
+	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install 
 
+alt-protocol:	
 	cd spice-protocol && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD)
+	rm -rf $(BUILD_DIR) && \
+	meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
+	ninja -C $(BUILD_DIR) && \
+	ninja -C $(BUILD_DIR) install
 
+alt-spice:	
 	cd spice && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) --prefix=$(PREFIX) -Dtests=false -Dspice-common:tests=false && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD)
+	rm -rf $(BUILD_DIR) && \
+	meson setup build --prefix=/usr -Dtests=false -Dspice-common:tests=false && \
+	ninja -C $(BUILD_DIR) && \
+	ninja -C $(BUILD_DIR) install
 
+alt-gtk:
+	cat /etc/os-release
 	cd spice-gtk && \
-		rm -rf $(BUILD_DIR) && \
-		meson setup $(BUILD_DIR) -Dsasl=disabled -Dusbredir=enabled --prefix=$(PREFIX) && \
-		ninja -C $(BUILD_DIR) && \
-		$(INSTALL_CMD) && \
-		cd po && \
-		msgfmt ru.po -o spice-gtk.mo && \
-		cd .. && \
-		cp po/spice-gtk.mo build/po/ru/LC_MESSAGES/
-	@echo "✅ Built and installed. PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)"
+	rm -rf $(BUILD_DIR) && \
+	meson setup $(BUILD_DIR) -Dsasl=disabled -Dusbredir=enabled --prefix=$(PREFIX) && \
+	ninja -C $(BUILD_DIR) && \
+	ninja -C $(BUILD_DIR) install && \
+	cd po && \
+	msgfmt ru.po -o spice-gtk.mo && \
+	cd .. && \
+	cp po/spice-gtk.mo build/po/ru/LC_MESSAGES/ && \
+	cp po/spice-gtk.mo /opt/build/build/usr/share/locale/ru/LC_MESSAGES/ && \
+	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install
+	@echo "✅ Всё собрано и установлено в: $(DESTDIR)"
+	chmod u+s /opt/build/spice/usr/libexec/spice-client-glib-usb-acl-helper
+
 
 install:
-	@echo "✅ Всё собрано и установлено в:"
-	@if [ -z "$(strip $(DESTDIR))" ]; then \
-		echo "   PREFIX=$(PREFIX) (direct install)"; \
-	else \
-		echo "   DESTDIR=$(DESTDIR) (staging root), prefix inside is $(PREFIX)"; \
-	fi
+	@echo "✅ Всё собрано и установлено в: $(DESTDIR)"
 
-# Fix: use PREFIX consistently (your old path /opt/spice/usr/... assumed prefix=/usr)
-# Setuid helper location depends on how spice-gtk was configured; typically:
-# - If PREFIX=/usr     => /usr/libexec/...
-# - If PREFIX=/opt/spice => /opt/spice/libexec/...
-# We handle both, and also support staging (DESTDIR).
 check:
-	@set -e; \
-	ROOT="$(strip $(DESTDIR))"; \
-	if [ -z "$$ROOT" ]; then ROOT=""; fi; \
-	for p in \
-		"$$ROOT$(PREFIX)/libexec/spice-client-glib-usb-acl-helper" \
-		"$$ROOT$(PREFIX)/usr/libexec/spice-client-glib-usb-acl-helper" \
-	; do \
-		if [ -f "$$p" ]; then \
-			echo "chmod u+s $$p"; \
-			if [ -z "$(strip $(DESTDIR))" ]; then sudo chmod u+s "$$p"; else chmod u+s "$$p"; fi; \
-		fi; \
-	done
+	echo "YEEEEEEEEEEEEEEEEEEEEEES"
+
+	#chmod u+s /opt/build/spice/usr/libexec/spice-client-glib-usb-acl-helper
 
 clean:
 	rm -rf */$(BUILD_DIR)
