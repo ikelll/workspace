@@ -112,12 +112,6 @@ jobs:
 
           python --version
           pip --version
-          python - <<'PY'
-import sys
-import ssl
-print("python:", sys.version)
-print("openssl:", ssl.OPENSSL_VERSION)
-PY
 
       - name: Build SPICE
         shell: bash
