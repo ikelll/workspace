@@ -17,6 +17,8 @@ RESOURCES_DIR="$APP_DIR/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
 FRAMEWORKS_DST="$APP_DIR/Contents/Frameworks"
 
+PKGROOT="$BUILD_DIR/pkgroot"
+APP_INSTALL_DIR="$PKGROOT/Applications"
 COMPONENT_PKG="$BUILD_DIR/component.pkg"
 FINAL_PKG="$BUILD_DIR/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
 
@@ -123,7 +125,7 @@ echo "==> List copied GST plugins"
 
 find "$SPICE_DST/lib/gstreamer-1.0" -maxdepth 1 -type f -name "*.dylib" | sort | sed 's#^#GST_PLUGIN: #'
 
-echo "==> Bundle dylib dependencies for SPICE only"
+echo "==> Bundle dylib dependencies for SPICE/Frameworks only"
 
 ci/macos/bundle_dylibs.sh "$APP_DIR"
 
@@ -260,7 +262,7 @@ if [ "$bad_homebrew" -eq 1 ]; then
   exit 1
 fi
 
-echo "==> Final app structure"
+echo "==> Final app structure before pkgroot copy"
 
 ls -la "$APP_DIR/Contents/MacOS"
 test -x "$APP_BIN"
@@ -272,14 +274,31 @@ fi
 
 find "$APP_DIR" -maxdepth 4 -type f | sort | head -300
 
-echo "==> Build component.pkg directly from dist app"
+echo "==> Build component.pkg from explicit pkgroot"
+
+rm -rf "$PKGROOT"
+mkdir -p "$APP_INSTALL_DIR"
+
+rsync -a --delete \
+  "$APP_DIR/" \
+  "$APP_INSTALL_DIR/$APP_BUNDLE/"
+
+test -d "$APP_INSTALL_DIR/$APP_BUNDLE"
+test -x "$APP_INSTALL_DIR/$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+
+echo "==> Payload app path:"
+ls -la "$APP_INSTALL_DIR"
+ls -la "$APP_INSTALL_DIR/$APP_BUNDLE/Contents/MacOS"
+
+echo "==> Payload files preview:"
+find "$PKGROOT" -maxdepth 4 -type f | sort | head -200
 
 pkgbuild \
-  --component "$APP_DIR" \
+  --root "$PKGROOT" \
   --scripts "$ROOT_DIR/ci/macos" \
   --identifier "$PKG_IDENTIFIER" \
   --version "$APP_VERSION" \
-  --install-location "/Applications" \
+  --install-location "/" \
   "$COMPONENT_PKG"
 
 echo "==> Create product requirements"
