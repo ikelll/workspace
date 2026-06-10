@@ -24,11 +24,24 @@ mkdir -p "$PAYLOAD_DIR/Applications"
 mkdir -p "$SPICE_DST"
 mkdir -p "$FRAMEWORKS_DST"
 
-echo "==> Copy app bundle"
-cp -a "dist/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
+echo "==> Sync app bundle from dist to payload"
+
+SRC_APP="$ROOT_DIR/dist/$APP_BUNDLE"
+
+test -d "$SRC_APP"
+test -x "$SRC_APP/Contents/MacOS/$APP_NAME"
+
+rm -rf "$APP_DST"
+
+rsync -a --delete \
+  "$SRC_APP/" \
+  "$APP_DST/"
 
 test -d "$APP_DST"
 test -x "$APP_DST/Contents/MacOS/$APP_NAME"
+
+echo "==> App bundle synced"
+du -sh "$SRC_APP" "$APP_DST"
 
 echo "==> Copy built SPICE files"
 
