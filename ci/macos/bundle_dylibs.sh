@@ -27,6 +27,18 @@ is_macho() {
   file "$file_path" 2>/dev/null | grep -q "Mach-O"
 }
 
+real_path_for_compare() {
+  local path="$1"
+  local base
+  base="$(basename "$path")"
+
+  if [ -e "$path" ]; then
+    cd "$(dirname "$path")" && printf '%s/%s\n' "$(pwd -P)" "$base"
+  else
+    cd "$(dirname "$path")" && printf '%s/%s\n' "$(pwd -P)" "$base"
+  fi
+}
+
 resolve_lib() {
   local lib="$1"
   local loader_dir="$2"
@@ -180,7 +192,21 @@ copy_lib() {
 
   local dst="$FRAMEWORKS_DIR/$base"
 
+  local src_real
+  local dst_real
+
+  src_real="$(real_path_for_compare "$src")"
+  dst_real="$(real_path_for_compare "$dst")"
+
   # ВАЖНО:
+  # Если src уже находится в Contents/Frameworks и совпадает с dst,
+  # нельзя rm -f "$dst", иначе удалим файл и потом cp из несуществующего src упадёт.
+  if [ "$src_real" = "$dst_real" ]; then
+    echo "KEEP EXISTING LOCAL LIB: $dst"
+    chmod u+w "$dst" || true
+    return 0
+  fi
+
   # Перезаписываем уже существующую dylib, иначе может остаться старая
   # библиотека с install name /opt/homebrew/...
   if [ -f "$dst" ]; then
@@ -244,6 +270,11 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
 
   while IFS= read -r file_path; do
     is_macho "$file_path" || continue
+
+    if [ "$file_path" = "$MAIN_APP_BIN" ]; then
+      echo "ERROR: main app binary reached dependency scan unexpectedly: $file_path"
+      exit 1
+    fi
 
     loader_dir="$(dirname "$file_path")"
 
