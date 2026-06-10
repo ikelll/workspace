@@ -2,71 +2,24 @@
 set -e
 
 APP="/Applications/GorizontVS-VDI.app"
-APP_MACOS="$APP/Contents/MacOS"
-SPICE="$APP/Contents/Resources/spice"
-FRAMEWORKS="$APP/Contents/Frameworks"
 
 if [ ! -d "$APP" ]; then
   echo "postinstall: app not found: $APP"
   exit 0
 fi
 
-echo "postinstall: fixing permissions"
+echo "postinstall: permissions only, do not touch Nuitka runtime"
 
-/bin/chmod -R u+w "$APP" || true
-/bin/chmod -R a+rX "$APP" || true
-
-if [ -f "$APP_MACOS/GorizontVS-VDI" ]; then
-  /bin/chmod +x "$APP_MACOS/GorizontVS-VDI" || true
+if [ -f "$APP/Contents/MacOS/GorizontVS-VDI" ]; then
+  /bin/chmod +x "$APP/Contents/MacOS/GorizontVS-VDI" || true
 fi
 
-if [ -d "$SPICE/bin" ]; then
-  /usr/bin/find "$SPICE/bin" -type f -exec /bin/chmod +x {} + 2>/dev/null || true
+if [ -d "$APP/Contents/Resources/spice/bin" ]; then
+  /usr/bin/find "$APP/Contents/Resources/spice/bin" -type f -exec /bin/chmod +x {} + 2>/dev/null || true
 fi
 
-if [ -f "$SPICE/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
-  /bin/chmod +x "$SPICE/libexec/gstreamer-1.0/gst-plugin-scanner" || true
+if [ -f "$APP/Contents/Resources/spice/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
+  /bin/chmod +x "$APP/Contents/Resources/spice/libexec/gstreamer-1.0/gst-plugin-scanner" || true
 fi
-
-echo "postinstall: removing broken symlinks only in SPICE/Frameworks"
-
-if [ -d "$SPICE" ]; then
-  /usr/bin/find "$SPICE" -xtype l -print -delete 2>/dev/null || true
-fi
-
-if [ -d "$FRAMEWORKS" ]; then
-  /usr/bin/find "$FRAMEWORKS" -xtype l -print -delete 2>/dev/null || true
-fi
-
-echo "postinstall: clearing xattrs only in SPICE/Frameworks"
-
-if [ -d "$SPICE" ]; then
-  /usr/bin/find "$SPICE" -type f -exec /usr/bin/xattr -c {} + 2>/dev/null || true
-  /usr/bin/find "$SPICE" -type d -exec /usr/bin/xattr -c {} + 2>/dev/null || true
-fi
-
-if [ -d "$FRAMEWORKS" ]; then
-  /usr/bin/find "$FRAMEWORKS" -type f -exec /usr/bin/xattr -c {} + 2>/dev/null || true
-  /usr/bin/find "$FRAMEWORKS" -type d -exec /usr/bin/xattr -c {} + 2>/dev/null || true
-fi
-
-echo "postinstall: ad-hoc signing SPICE/Frameworks Mach-O files only"
-
-for root in "$SPICE" "$FRAMEWORKS"; do
-  if [ ! -d "$root" ]; then
-    continue
-  fi
-
-  /usr/bin/find "$root" -type f -print0 | while IFS= read -r -d '' file_path; do
-    if /usr/bin/file "$file_path" 2>/dev/null | /usr/bin/grep -q "Mach-O"; then
-      echo "sign: $file_path"
-      /bin/chmod u+w "$file_path" || true
-      /usr/bin/codesign --remove-signature "$file_path" 2>/dev/null || true
-      /usr/bin/codesign --force --sign - --timestamp=none "$file_path" || true
-    fi
-  done
-done
-
-echo "postinstall: do not sign app bundle and do not touch Nuitka/PySide runtime"
 
 exit 0
