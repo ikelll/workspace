@@ -7,8 +7,8 @@ APP_BIN_DIR="$APP_DIR/Contents/MacOS"
 FRAMEWORKS_DIR="$APP_DIR/Contents/Frameworks"
 SPICE_DIR="$APP_DIR/Contents/Resources/spice"
 
-MAIN_APP_BIN="$APP_BIN_DIR/GorizontVS-VDI"
-MAIN_APP_REAL_BIN="$APP_BIN_DIR/GorizontVS-VDI.real"
+APP_NAME="${APP_NAME:-GorizontVS-VDI}"
+MAIN_APP_BIN="$APP_BIN_DIR/$APP_NAME"
 
 mkdir -p "$FRAMEWORKS_DIR"
 
@@ -30,7 +30,6 @@ is_main_app_binary() {
   local file_path="$1"
 
   [[ "$file_path" == "$MAIN_APP_BIN" ]] && return 0
-  [[ "$file_path" == "$MAIN_APP_REAL_BIN" ]] && return 0
 
   return 1
 }
@@ -117,12 +116,10 @@ copy_lib() {
   local base
   base="$(basename "$src")"
 
-  # GStreamer plugins already live in Resources/spice/lib/gstreamer-1.0.
   if [[ "$src" == *"/lib/gstreamer-1.0/"* ]]; then
     return 0
   fi
 
-  # Do not duplicate Qt/Python runtime if pyside6-deploy/Nuitka already placed it.
   if [[ "$base" == Qt* || "$base" == libQt* ]]; then
     echo "SKIP QT DUPLICATE: $src"
     return 0
@@ -145,7 +142,7 @@ copy_lib() {
 collect_macho_files() {
   find "$APP_DIR" -type f \
     ! -path "$MAIN_APP_BIN" \
-    ! -path "$MAIN_APP_REAL_BIN" \
+    ! -name "${APP_NAME}.real" \
     -print
 }
 
@@ -170,9 +167,7 @@ rewrite_dep_to_local() {
 }
 
 echo "==> Collect dylib dependencies"
-echo "==> Main app binaries are protected from install_name_tool:"
-echo "    $MAIN_APP_BIN"
-echo "    $MAIN_APP_REAL_BIN"
+echo "==> Protected main app binary: $MAIN_APP_BIN"
 
 changed=1
 round=0
@@ -184,10 +179,10 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
   echo "==> Dependency scan round $round"
 
   while IFS= read -r file_path; do
-    is_main_app_binary "$file_path" && {
+    if is_main_app_binary "$file_path"; then
       echo "SKIP MAIN APP BINARY: $file_path"
       continue
-    }
+    fi
 
     is_macho "$file_path" || continue
 
@@ -217,10 +212,10 @@ done
 echo "==> Rewrite dylib paths and install names"
 
 while IFS= read -r file_path; do
-  is_main_app_binary "$file_path" && {
+  if is_main_app_binary "$file_path"; then
     echo "SKIP MAIN APP BINARY: $file_path"
     continue
-  }
+  fi
 
   is_macho "$file_path" || continue
 
@@ -237,8 +232,6 @@ while IFS= read -r file_path; do
       ;;
   esac
 
-  # Main app / Nuitka / PySide support files.
-  # Main Nuitka executable itself is intentionally skipped above.
   install_name_tool -add_rpath "@executable_path" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
@@ -246,15 +239,12 @@ while IFS= read -r file_path; do
   install_name_tool -add_rpath "@loader_path/../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
 
-  # SPICE prefix:
   install_name_tool -add_rpath "@loader_path/../lib" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../lib" "$file_path" 2>/dev/null || true
 
-  # SPICE binaries -> Contents/Frameworks/*.dylib
   install_name_tool -add_rpath "@loader_path/../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../Frameworks" "$file_path" 2>/dev/null || true
 
-  # GStreamer plugins:
   install_name_tool -add_rpath "@loader_path/../.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
@@ -272,10 +262,10 @@ done < <(collect_macho_files)
 echo "==> Second rewrite pass after install names changed"
 
 while IFS= read -r file_path; do
-  is_main_app_binary "$file_path" && {
+  if is_main_app_binary "$file_path"; then
     echo "SKIP MAIN APP BINARY: $file_path"
     continue
-  }
+  fi
 
   is_macho "$file_path" || continue
 
@@ -295,15 +285,15 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Validate: no /opt/homebrew dylib references"
+echo "==> Validate: no /opt/homebrew dylib references except main app binary"
 
 bad=0
 
 while IFS= read -r file_path; do
-  is_main_app_binary "$file_path" && {
+  if is_main_app_binary "$file_path"; then
     echo "SKIP MAIN APP BINARY VALIDATION: $file_path"
     continue
-  }
+  fi
 
   is_macho "$file_path" || continue
 

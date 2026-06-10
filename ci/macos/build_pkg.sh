@@ -10,42 +10,32 @@ DEPLOY_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-PAYLOAD_DIR="$ROOT_DIR/build/pkgroot"
-APP_DST="$PAYLOAD_DIR/Applications/$APP_BUNDLE"
-SRC_APP="$ROOT_DIR/dist/$APP_BUNDLE"
-
-RESOURCES_DIR="$APP_DST/Contents/Resources"
+BUILD_DIR="$ROOT_DIR/build"
+APP_DIR="$ROOT_DIR/dist/$APP_BUNDLE"
+APP_BIN="$APP_DIR/Contents/MacOS/$APP_NAME"
+RESOURCES_DIR="$APP_DIR/Contents/Resources"
 SPICE_DST="$RESOURCES_DIR/spice"
-FRAMEWORKS_DST="$APP_DST/Contents/Frameworks"
+FRAMEWORKS_DST="$APP_DIR/Contents/Frameworks"
 
-echo "==> Clean old build"
-rm -rf "$ROOT_DIR/build"
+FINAL_PKG="$BUILD_DIR/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
+COMPONENT_PKG="$BUILD_DIR/component.pkg"
 
-echo "==> Create clean payload"
-mkdir -p "$PAYLOAD_DIR/Applications"
+echo "==> Clean package build dir only"
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
 
-echo "==> Sync app bundle from dist to payload"
+echo "==> Use app bundle directly from dist"
+test -d "$APP_DIR"
+test -x "$APP_BIN"
 
-test -d "$SRC_APP"
-test -x "$SRC_APP/Contents/MacOS/$APP_NAME"
+echo "APP_DIR=$APP_DIR"
+echo "APP_BIN=$APP_BIN"
 
-rm -rf "$APP_DST"
-
-rsync -a --delete \
-  "$SRC_APP/" \
-  "$APP_DST/"
-
-test -d "$APP_DST"
-test -x "$APP_DST/Contents/MacOS/$APP_NAME"
-
-echo "==> App bundle synced"
-du -sh "$SRC_APP" "$APP_DST"
-
-echo "==> Create SPICE/GStreamer directories"
+echo "==> Prepare app internal directories"
 mkdir -p "$SPICE_DST"
 mkdir -p "$FRAMEWORKS_DST"
 
-echo "==> Copy built SPICE files"
+echo "==> Copy built SPICE files into dist app"
 
 if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
   echo "ERROR: spice-full/build/spice/opt/homebrew not found"
@@ -53,9 +43,11 @@ if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
   exit 1
 fi
 
-rsync -a --delete "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
+rsync -a --delete \
+  "spice-full/build/spice/opt/homebrew/" \
+  "$SPICE_DST/"
 
-echo "==> Copy GStreamer runtime/plugins/codecs from runner"
+echo "==> Copy GStreamer runtime/plugins/codecs into dist app"
 
 mkdir -p "$SPICE_DST/bin"
 mkdir -p "$SPICE_DST/lib"
@@ -113,34 +105,7 @@ do
   fi
 done
 
-echo "==> List copied GST plugins"
-find "$SPICE_DST/lib/gstreamer-1.0" -maxdepth 1 -type f -name "*.dylib" | sort | sed 's#^#GST_PLUGIN: #'
-
-echo "==> Check important GStreamer plugins"
-
-required_gst_plugins=(
-  "libgstcoreelements.dylib"
-  "libgstplayback.dylib"
-  "libgstvideoconvertscale.dylib"
-  "libgstaudioconvert.dylib"
-  "libgstaudioresample.dylib"
-  "libgstapp.dylib"
-  "libgstlibav.dylib"
-  "libgstisomp4.dylib"
-  "libgstmatroska.dylib"
-  "libgstrtp.dylib"
-  "libgstrtpmanager.dylib"
-  "libgstrtsp.dylib"
-  "libgstvideoparsersbad.dylib"
-)
-
-for plugin in "${required_gst_plugins[@]}"; do
-  if [ -f "$SPICE_DST/lib/gstreamer-1.0/$plugin" ]; then
-    echo "OK GST: $plugin"
-  else
-    echo "WARN GST MISSING: $plugin"
-  fi
-done
+echo "==> Check gst-plugin-scanner"
 
 if [ ! -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
   echo "ERROR: gst-plugin-scanner not found"
@@ -148,18 +113,21 @@ if [ ! -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
   exit 1
 fi
 
-echo "==> Bundle dylib dependencies from runner"
-ci/macos/bundle_dylibs.sh "$APP_DST"
+echo "==> List copied GST plugins"
+find "$SPICE_DST/lib/gstreamer-1.0" -maxdepth 1 -type f -name "*.dylib" | sort | sed 's#^#GST_PLUGIN: #'
+
+echo "==> Bundle dylib dependencies into dist app"
+ci/macos/bundle_dylibs.sh "$APP_DIR"
 
 echo "==> Remove GTK4 libraries, keep GTK3 for spicy"
 
-rm -f "$APP_DST/Contents/Frameworks"/libgtk-4*.dylib || true
-rm -f "$APP_DST/Contents/Frameworks"/libgdk-4*.dylib || true
-rm -f "$APP_DST/Contents/Frameworks"/libgraphene-1.0*.dylib || true
+rm -f "$FRAMEWORKS_DST"/libgtk-4*.dylib || true
+rm -f "$FRAMEWORKS_DST"/libgdk-4*.dylib || true
+rm -f "$FRAMEWORKS_DST"/libgraphene-1.0*.dylib || true
 
 echo "==> Check SPICE spicy rpaths"
 
-SPICY_BIN="$APP_DST/Contents/Resources/spice/bin/spicy"
+SPICY_BIN="$SPICE_DST/bin/spicy"
 
 if [ -x "$SPICY_BIN" ]; then
   echo "spicy exists: $SPICY_BIN"
@@ -181,18 +149,74 @@ else
   exit 1
 fi
 
-echo "==> Do not remove Qt/Python from Nuitka app runtime"
+echo "==> Keep Nuitka/PySide runtime untouched"
 
 # ВАЖНО:
-# Раньше здесь удалялись Qt/Python из Contents/Frameworks.
-# Пока не трогаем runtime pyside6-deploy/Nuitka, потому что dist/.app работает,
-# а payload/.app после модификаций ломался.
+# Не удаляем Qt/Python из Contents/MacOS или Contents/Frameworks.
+# Не переименовываем Contents/MacOS/GorizontVS-VDI.
+# Не создаём wrapper.
+# Не создаём GorizontVS-VDI.real.
+
+echo "==> Patch Info.plist"
+
+PLIST="$APP_DIR/Contents/Info.plist"
+
+/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $DEPLOY_TARGET" "$PLIST" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $DEPLOY_TARGET" "$PLIST"
+
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || true
+
+echo "==> Permissions"
+
+chmod -R u+w "$APP_DIR" || true
+chmod -R a+rX "$APP_DIR"
+chmod +x "$APP_BIN"
+
+if [ -d "$SPICE_DST/bin" ]; then
+  find "$SPICE_DST/bin" -type f -exec chmod +x {} + 2>/dev/null || true
+fi
+
+if [ -f "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
+  chmod +x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner" || true
+fi
+
+echo "==> Remove broken symlinks"
+
+find "$APP_DIR" -xtype l -print -delete 2>/dev/null || true
+
+echo "==> Clear xattrs"
+
+find "$APP_DIR" -type f -exec xattr -c {} + 2>/dev/null || true
+find "$APP_DIR" -type d -exec xattr -c {} + 2>/dev/null || true
+
+echo "==> Ad-hoc sign Mach-O files except main Nuitka binary"
+
+find "$APP_DIR" -type f -print0 | while IFS= read -r -d '' file_path; do
+  if [ "$file_path" = "$APP_BIN" ]; then
+    echo "SKIP SIGN MAIN APP BINARY: $file_path"
+    continue
+  fi
+
+  if file "$file_path" | grep -q "Mach-O"; then
+    echo "SIGN: $file_path"
+    chmod u+w "$file_path" || true
+    codesign --remove-signature "$file_path" 2>/dev/null || true
+    codesign --force --sign - --timestamp=none "$file_path"
+  fi
+done
+
+echo "==> Do not codesign app bundle itself"
+
+# ВАЖНО:
+# Не делаем codesign --force "$APP_DIR", чтобы не трогать основной бинарь.
+# Пакет остаётся unsigned/ad-hoc для внутренней установки.
 
 echo "==> Check no GTK4 libraries in Frameworks"
 
-if find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \) | grep -q .; then
+if find "$FRAMEWORKS_DST" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \) | grep -q .; then
   echo "ERROR: GTK4 libraries found in Contents/Frameworks"
-  find "$APP_DST/Contents/Frameworks" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \)
+  find "$FRAMEWORKS_DST" -maxdepth 1 -type f \( -name "libgtk-4*.dylib" -o -name "libgdk-4*.dylib" \)
   exit 1
 fi
 
@@ -209,119 +233,16 @@ do
   fi
 done
 
-echo "==> Create launcher wrapper"
-
-BIN="$APP_DST/Contents/MacOS/$APP_NAME"
-REAL_BIN="$APP_DST/Contents/MacOS/${APP_NAME}.real"
-
-if [ ! -f "$REAL_BIN" ]; then
-  mv "$BIN" "$REAL_BIN"
-
-  cat > "$BIN" <<'EOF'
-#!/bin/bash
-set -e
-
-APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_CONTENTS_DIR="$(cd "$APP_MACOS_DIR/.." && pwd)"
-APP_RESOURCES_DIR="$APP_CONTENTS_DIR/Resources"
-APP_FRAMEWORKS_DIR="$APP_CONTENTS_DIR/Frameworks"
-SPICE_DIR="$APP_RESOURCES_DIR/spice"
-
-mkdir -p "$HOME/Library/Application Support/GorizontVS" || true
-
-export PATH="$SPICE_DIR/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
-export DYLD_FALLBACK_LIBRARY_PATH="$APP_FRAMEWORKS_DIR:$SPICE_DIR/lib:$SPICE_DIR/lib/gstreamer-1.0:/usr/lib"
-
-export GST_PLUGIN_PATH_1_0="$SPICE_DIR/lib/gstreamer-1.0"
-export GST_PLUGIN_SCANNER="$SPICE_DIR/libexec/gstreamer-1.0/gst-plugin-scanner"
-export GST_REGISTRY_REUSE_PLUGIN_SCANNER=1
-export GST_REGISTRY="$HOME/Library/Application Support/GorizontVS/gstreamer-registry.bin"
-
-export GIO_MODULE_DIR="$SPICE_DIR/lib/gio/modules"
-export GI_TYPELIB_PATH="$SPICE_DIR/lib/girepository-1.0"
-
-exec "$APP_MACOS_DIR/GorizontVS-VDI.real" "$@"
-EOF
-
-  chmod +x "$BIN"
-fi
-
-echo "==> Patch Info.plist"
-
-PLIST="$APP_DST/Contents/Info.plist"
-
-/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $DEPLOY_TARGET" "$PLIST" 2>/dev/null || \
-/usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $DEPLOY_TARGET" "$PLIST"
-
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || true
-
-echo "==> Check main executable"
-
-ls -la "$APP_DST"
-ls -la "$APP_DST/Contents"
-ls -la "$APP_DST/Contents/MacOS"
-
-test -d "$APP_DST"
-test -f "$APP_DST/Contents/Info.plist"
-test -x "$APP_DST/Contents/MacOS/$APP_NAME"
-test -x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
-
-echo "==> Permissions"
-
-chmod -R u+w "$APP_DST" || true
-chmod -R a+rX "$APP_DST"
-chmod +x "$APP_DST/Contents/MacOS/$APP_NAME"
-chmod +x "$APP_DST/Contents/MacOS/${APP_NAME}.real"
-
-if [ -d "$APP_DST/Contents/Resources/spice/bin" ]; then
-  find "$APP_DST/Contents/Resources/spice/bin" -type f -exec chmod +x {} + 2>/dev/null || true
-fi
-
-if [ -f "$APP_DST/Contents/Resources/spice/libexec/gstreamer-1.0/gst-plugin-scanner" ]; then
-  chmod +x "$APP_DST/Contents/Resources/spice/libexec/gstreamer-1.0/gst-plugin-scanner" || true
-fi
-
-echo "==> Remove broken symlinks before codesign"
-
-find "$APP_DST" -xtype l -print -delete 2>/dev/null || true
-
-echo "==> Clear xattrs"
-
-find "$APP_DST" -type f -exec xattr -c {} + 2>/dev/null || true
-find "$APP_DST" -type d -exec xattr -c {} + 2>/dev/null || true
-
-echo "==> Ad-hoc sign all Mach-O files"
-
-find "$APP_DST" -type f -print0 | while IFS= read -r -d '' file_path; do
-  if file "$file_path" | grep -q "Mach-O"; then
-    echo "SIGN: $file_path"
-    chmod u+w "$file_path" || true
-    codesign --remove-signature "$file_path" 2>/dev/null || true
-    codesign --force --sign - --timestamp=none "$file_path"
-  fi
-done
-
-echo "==> Ad-hoc sign app bundle"
-
-codesign --remove-signature "$APP_DST" 2>/dev/null || true
-codesign --force --sign - --timestamp=none "$APP_DST"
-
-echo "==> Verify ad-hoc signature"
-
-codesign --verify --verbose=4 "$APP_DST"
-
-if ! codesign --verify --deep --strict --verbose=4 "$APP_DST"; then
-  echo "WARN: deep strict verification failed. Printing diagnostics, but continuing."
-  codesign --verify --deep --strict --verbose=4 "$APP_DST" || true
-fi
-
-echo "==> Check no /opt/homebrew refs after cleanup"
+echo "==> Check no /opt/homebrew refs except main Nuitka binary"
 
 bad_homebrew=0
 
 while IFS= read -r macho; do
+  if [ "$macho" = "$APP_BIN" ]; then
+    echo "SKIP MAIN APP BINARY HOMEBREW CHECK: $macho"
+    continue
+  fi
+
   if file "$macho" | grep -q "Mach-O"; then
     if otool -L "$macho" 2>/dev/null | grep -q "/opt/homebrew"; then
       echo "BAD HOMEBREW REF: $macho"
@@ -329,40 +250,38 @@ while IFS= read -r macho; do
       bad_homebrew=1
     fi
   fi
-done < <(find "$APP_DST" -type f -print)
+done < <(find "$APP_DIR" -type f -print)
 
 if [ "$bad_homebrew" -eq 1 ]; then
   echo "ERROR: unresolved /opt/homebrew references remained"
   exit 1
 fi
 
-echo "==> Check final app structure"
+echo "==> Final app structure"
 
-find "$APP_DST" -maxdepth 4 -type f | sort | head -300
+ls -la "$APP_DIR/Contents/MacOS"
+test -x "$APP_BIN"
 
-echo "==> Analyze component"
+if [ -e "$APP_DIR/Contents/MacOS/${APP_NAME}.real" ]; then
+  echo "ERROR: ${APP_NAME}.real must not exist"
+  exit 1
+fi
 
-pkgbuild --analyze \
-  --root "$PAYLOAD_DIR" \
-  "$ROOT_DIR/build/component.plist"
+find "$APP_DIR" -maxdepth 4 -type f | sort | head -300
 
-/usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
-/usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$ROOT_DIR/build/component.plist" 2>/dev/null || true
-
-echo "==> Build component.pkg"
+echo "==> Build component.pkg directly from dist app"
 
 pkgbuild \
-  --root "$PAYLOAD_DIR" \
-  --component-plist "$ROOT_DIR/build/component.plist" \
+  --component "$APP_DIR" \
   --scripts "$ROOT_DIR/ci/macos" \
   --identifier "$PKG_IDENTIFIER" \
   --version "$APP_VERSION" \
-  --install-location "/" \
-  "$ROOT_DIR/build/component.pkg"
+  --install-location "/Applications" \
+  "$COMPONENT_PKG"
 
 echo "==> Create product requirements"
 
-cat > "$ROOT_DIR/build/product-requirements.plist" <<EOF
+cat > "$BUILD_DIR/product-requirements.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -378,11 +297,9 @@ EOF
 
 echo "==> Build final unsigned PKG"
 
-FINAL_PKG="$ROOT_DIR/build/GorizontVS-VDI-Client-Setup-${APP_VERSION}-macos14-arm64.pkg"
-
 productbuild \
-  --product "$ROOT_DIR/build/product-requirements.plist" \
-  --package "$ROOT_DIR/build/component.pkg" \
+  --product "$BUILD_DIR/product-requirements.plist" \
+  --package "$COMPONENT_PKG" \
   "$FINAL_PKG"
 
 echo "==> Done"
