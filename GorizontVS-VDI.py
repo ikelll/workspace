@@ -7,7 +7,8 @@ import signal
 import sys
 
 from src.infrastructure.logging_setup import setup_logging
-
+from src.macos_runtime import setup_macos_bundle_environment
+setup_macos_bundle_environment()
 setup_logging()
 
 from PySide6.QtCore import QEvent, QEventLoop, QSettings, Qt, QTimer  # type: ignore  # noqa: E402
