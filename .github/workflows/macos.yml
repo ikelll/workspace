@@ -233,10 +233,14 @@ jobs:
 
           ci/macos/build_pkg_with_spicy.sh
 
+          mkdir -p build/debug
+
       - name: Verify PKG
         shell: bash
         run: |
           set -euxo pipefail
+
+          mkdir -p build/debug
 
           ls -lh build/*.pkg | tee build/debug/pkg-list.txt
 
