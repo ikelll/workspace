@@ -121,36 +121,14 @@ rm -f "$APP_FRAMEWORKS_DIR"/libpython* || true
 rm -f "$APP_FRAMEWORKS_DIR"/libgtk-4*.dylib || true
 rm -f "$APP_FRAMEWORKS_DIR"/libgdk-4*.dylib || true
 
-echo "==> Create compatibility spicy wrapper in Contents/MacOS"
+echo "==> Remove invalid Contents/MacOS/spicy wrapper if exists"
 
-cat > "$APP_MACOS_DIR/spicy" <<'EOF'
-#!/bin/bash
-set -e
-
-APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_CONTENTS_DIR="$(cd "$APP_MACOS_DIR/.." && pwd)"
-APP_RESOURCES_DIR="$APP_CONTENTS_DIR/Resources"
-APP_FRAMEWORKS_DIR="$APP_CONTENTS_DIR/Frameworks"
-SPICE_DIR="$APP_RESOURCES_DIR/spice"
-
-mkdir -p "$HOME/Library/Application Support/GorizontVS" || true
-
-export PATH="$SPICE_DIR/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
-export DYLD_FALLBACK_LIBRARY_PATH="$APP_FRAMEWORKS_DIR:$SPICE_DIR/lib:$SPICE_DIR/lib/gstreamer-1.0:/usr/lib"
-
-export GST_PLUGIN_PATH_1_0="$SPICE_DIR/lib/gstreamer-1.0"
-export GST_PLUGIN_SCANNER="$SPICE_DIR/libexec/gstreamer-1.0/gst-plugin-scanner"
-export GST_REGISTRY_REUSE_PLUGIN_SCANNER=1
-export GST_REGISTRY="$HOME/Library/Application Support/GorizontVS/gstreamer-registry.bin"
-
-export GIO_MODULE_DIR="$SPICE_DIR/lib/gio/modules"
-export GI_TYPELIB_PATH="$SPICE_DIR/lib/girepository-1.0"
-
-exec "$SPICE_DIR/bin/spicy" "$@"
-EOF
-
-chmod +x "$APP_MACOS_DIR/spicy"
+# Important:
+# Do NOT keep shell wrapper in Contents/MacOS.
+# codesign treats executable files inside Contents/MacOS as nested code objects.
+# A shell script there can break signing:
+# "code object is not signed at all; In subcomponent: Contents/MacOS/spicy"
+rm -f "$APP_MACOS_DIR/spicy" || true
 
 echo "==> Patch Info.plist"
 
@@ -165,7 +143,6 @@ PLIST="$APP_DST/Contents/Info.plist"
 echo "==> Validate structure"
 
 test -x "$APP_MACOS_DIR/$APP_NAME"
-test -x "$APP_MACOS_DIR/spicy"
 test -x "$SPICE_DST/bin/spicy"
 test -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
 
@@ -175,7 +152,6 @@ chmod -R u+w "$APP_DST" || true
 chmod -R a+rX "$APP_DST"
 
 chmod +x "$APP_MACOS_DIR/$APP_NAME"
-chmod +x "$APP_MACOS_DIR/spicy"
 chmod +x "$SPICE_DST/bin/spicy"
 chmod +x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
 
