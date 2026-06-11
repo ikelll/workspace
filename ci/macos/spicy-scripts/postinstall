@@ -1,0 +1,39 @@
+#!/bin/bash
+set -e
+
+APP="/Applications/GorizontVS-VDI.app"
+SPICE="$APP/Contents/Resources/spice"
+
+if [ ! -d "$APP" ]; then
+  exit 0
+fi
+
+mkdir -p /usr/local/bin
+
+cat > /usr/local/bin/spicy <<'EOF'
+#!/bin/bash
+set -e
+
+APP="/Applications/GorizontVS-VDI.app"
+SPICE="$APP/Contents/Resources/spice"
+
+mkdir -p "$HOME/Library/Application Support/GorizontVS" || true
+
+export PATH="$SPICE/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+export DYLD_FALLBACK_LIBRARY_PATH="$APP/Contents/Frameworks:$SPICE/lib:$SPICE/lib/gstreamer-1.0:/usr/lib"
+
+export GST_PLUGIN_PATH_1_0="$SPICE/lib/gstreamer-1.0"
+export GST_PLUGIN_SCANNER="$SPICE/libexec/gstreamer-1.0/gst-plugin-scanner"
+export GST_REGISTRY_REUSE_PLUGIN_SCANNER=1
+export GST_REGISTRY="$HOME/Library/Application Support/GorizontVS/gstreamer-registry.bin"
+
+export GIO_MODULE_DIR="$SPICE/lib/gio/modules"
+export GI_TYPELIB_PATH="$SPICE/lib/girepository-1.0"
+
+exec "$SPICE/bin/spicy" "$@"
+EOF
+
+chmod +x /usr/local/bin/spicy
+
+exit 0
