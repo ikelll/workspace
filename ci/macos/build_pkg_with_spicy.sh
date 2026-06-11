@@ -95,12 +95,17 @@ for tool in gst-inspect-1.0 gst-launch-1.0 gst-discoverer-1.0; do
   fi
 done
 
-echo "==> Copy GLib/GStreamer data"
+echo "==> Copy GTK/GLib/GStreamer/GdkPixbuf data"
 
 for src in \
   "/opt/homebrew/share/gstreamer-1.0" \
   "/opt/homebrew/share/glib-2.0" \
-  "/opt/homebrew/share/locale"
+  "/opt/homebrew/share/locale" \
+  "/opt/homebrew/share/icons" \
+  "/opt/homebrew/share/mime" \
+  "/opt/homebrew/share/themes" \
+  "/opt/homebrew/share/gtk-3.0" \
+  "/opt/homebrew/share/gdk-pixbuf-2.0"
 do
   if [ -d "$src" ]; then
     dst="$SPICE_DST/share/$(basename "$src")"
@@ -108,6 +113,36 @@ do
     rsync -a "$src/" "$dst/"
   fi
 done
+
+echo "==> Copy gdk-pixbuf loaders"
+
+mkdir -p "$SPICE_DST/lib/gdk-pixbuf-2.0"
+
+if [ -d "/opt/homebrew/lib/gdk-pixbuf-2.0" ]; then
+  rsync -a "/opt/homebrew/lib/gdk-pixbuf-2.0/" "$SPICE_DST/lib/gdk-pixbuf-2.0/"
+fi
+
+if [ -d "/opt/homebrew/opt/gdk-pixbuf/lib/gdk-pixbuf-2.0" ]; then
+  rsync -a "/opt/homebrew/opt/gdk-pixbuf/lib/gdk-pixbuf-2.0/" "$SPICE_DST/lib/gdk-pixbuf-2.0/"
+fi
+
+echo "==> Generate bundled gdk-pixbuf loaders.cache"
+
+if [ -x "/opt/homebrew/bin/gdk-pixbuf-query-loaders" ]; then
+  mkdir -p "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0"
+
+  if [ -d "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders" ]; then
+    "/opt/homebrew/bin/gdk-pixbuf-query-loaders" \
+      "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders/"*.so \
+      > "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" || true
+
+    # gdk-pixbuf-query-loaders writes absolute paths.
+    # Rewrite them to the path used after installation.
+    sed -i '' \
+      "s#$SPICE_DST#/Applications/$APP_BUNDLE/Contents/Resources/spice#g" \
+      "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" || true
+  fi
+fi
 
 echo "==> Bundle dylibs and fix rpaths"
 ci/macos/bundle_dylibs_spicy.sh "$APP_DST"
@@ -123,11 +158,8 @@ rm -f "$APP_FRAMEWORKS_DIR"/libgdk-4*.dylib || true
 
 echo "==> Remove invalid Contents/MacOS/spicy wrapper if exists"
 
-# Important:
 # Do NOT keep shell wrapper in Contents/MacOS.
 # codesign treats executable files inside Contents/MacOS as nested code objects.
-# A shell script there can break signing:
-# "code object is not signed at all; In subcomponent: Contents/MacOS/spicy"
 rm -f "$APP_MACOS_DIR/spicy" || true
 
 echo "==> Patch Info.plist"

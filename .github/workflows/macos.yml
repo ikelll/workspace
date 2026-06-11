@@ -64,6 +64,11 @@ jobs:
             gst-libav \
             glib \
             pixman \
+            gdk-pixbuf \
+            librsvg \
+            shared-mime-info \
+            adwaita-icon-theme \
+            hicolor-icon-theme \
             meson \
             ninja \
             phodav \
@@ -98,6 +103,8 @@ jobs:
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
 
+          mkdir -p build/debug
+
           /opt/homebrew/bin/python3 --version
 
           /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing || \
@@ -111,6 +118,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+
+          mkdir -p build/debug
 
           /opt/homebrew/bin/python3.13 -m venv venv
           source venv/bin/activate
@@ -156,6 +165,8 @@ jobs:
         run: |
           set -euxo pipefail
 
+          mkdir -p build/debug
+
           source venv/bin/activate
 
           rm -rf spice-full
@@ -189,6 +200,8 @@ jobs:
 
           cd ..
 
+          mkdir -p build/debug
+
           echo "== SPICE build output =="
           find spice-full/build/spice -maxdepth 6 -type f | sort | tee build/debug/spice-build-files.txt
 
@@ -198,6 +211,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+
+          mkdir -p build/debug
 
           source venv/bin/activate
 
@@ -214,6 +229,8 @@ jobs:
 
           test -d "dist/GorizontVS-VDI.app"
           test -x "dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI"
+
+          mkdir -p build/debug
 
           echo "== DIST APP FILES =="
           find dist/GorizontVS-VDI.app -maxdepth 5 -type f | sort | tee build/debug/dist-app-files.txt
@@ -248,7 +265,14 @@ jobs:
 
           rm -rf /tmp/pkg-expand
 
-          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg | head -n 1)"
+          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg build/GorizontVS-VDI-With-SPICE-*.pkg 2>/dev/null | head -n 1)"
+
+          if [ -z "$PKG_FILE" ]; then
+            echo "ERROR: final PKG not found"
+            ls -lh build || true
+            exit 1
+          fi
+
           echo "$PKG_FILE" | tee build/debug/final-pkg-path.txt
 
           pkgutil --expand-full "$PKG_FILE" /tmp/pkg-expand
@@ -259,7 +283,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GorizontVS-VDI-Client-Setup-arm64
-          path: build/GorizontVS-VDI-Client-Setup-*.pkg
+          path: |
+            build/GorizontVS-VDI-Client-Setup-*.pkg
+            build/GorizontVS-VDI-With-SPICE-*.pkg
 
       - name: Upload debug info
         uses: actions/upload-artifact@v4
