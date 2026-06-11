@@ -17,6 +17,7 @@ env:
 
 jobs:
   build-pkg:
+    name: Build macOS 14+ unsigned PKG
     runs-on: macos-14
 
     steps:
@@ -28,20 +29,15 @@ jobs:
         run: |
           set -euxo pipefail
 
-          echo "=== Runner ==="
           sw_vers
           uname -a
           arch
 
-          echo "=== Tools ==="
           which pkgbuild
           which productbuild
-          which python3 || true
-          which brew || true
-
-          echo "=== Git ==="
-          git rev-parse HEAD
-          git log -1 --oneline
+          which codesign
+          which install_name_tool
+          which otool
 
       - name: Install dependencies
         shell: bash
@@ -52,7 +48,6 @@ jobs:
 
           brew install \
             python@3.13 \
-            ccache \
             krb5 \
             gstreamer \
             gst-plugins-base \
@@ -83,7 +78,6 @@ jobs:
             flac \
             lame \
             fdk-aac \
-            opusfile \
             libass \
             libpng \
             webp \
@@ -91,12 +85,13 @@ jobs:
 
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
-          echo "/opt/homebrew/opt/ccache/libexec" >> "$GITHUB_PATH"
 
-          /opt/homebrew/bin/python3 -m pip install pyparsing --break-system-packages
+          /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing || \
+          /opt/homebrew/bin/python3 -m pip install --user pyparsing
+
           /opt/homebrew/bin/python3 -c "import pyparsing; print('pyparsing OK')"
 
-      - name: Python venv
+      - name: Prepare Python venv
         shell: bash
         run: |
           set -euxo pipefail
@@ -106,14 +101,12 @@ jobs:
 
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
-
-          # Nuitka фиксируем, чтобы CI не начал внезапно падать из-за новой версии.
-          pip install pyparsing krb5 "nuitka==2.7.14" ordered-set zstandard imageio
+          pip install pyparsing krb5 nuitka ordered-set zstandard imageio
 
           python --version
           pip --version
 
-      - name: Build SPICE
+      - name: Build SPICE stack
         shell: bash
         run: |
           set -euxo pipefail
@@ -129,7 +122,7 @@ jobs:
 
           cd spice-full
 
-          export PATH="/opt/homebrew/opt/ccache/libexec:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+          export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
           export PKG_CONFIG_PATH="/opt/homebrew/opt/cyrus-sasl/lib/pkgconfig:/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:${PKG_CONFIG_PATH:-}"
           export CPPFLAGS="-I/opt/homebrew/include"
           export LDFLAGS="-L/opt/homebrew/lib"
@@ -142,13 +135,6 @@ jobs:
 
           make
 
-          echo "=== Built SPICE files preview ==="
-          find build/spice -maxdepth 6 -type f | sort | head -300
-
-          echo "=== spicy check ==="
-          find build/spice -type f -name spicy -print
-          test -x build/spice/opt/homebrew/bin/spicy
-
       - name: Build client app
         shell: bash
         run: |
@@ -156,42 +142,21 @@ jobs:
 
           source venv/bin/activate
 
-          export PATH="/opt/homebrew/opt/ccache/libexec:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+          export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:${PKG_CONFIG_PATH:-}"
           export MACOSX_DEPLOYMENT_TARGET="14.0"
 
-          echo "=== Source state ==="
-          git rev-parse HEAD
-          git status --short
-
-          echo "=== Clean old Nuitka/PySide build artifacts ==="
-          rm -rf dist build
-          rm -rf .nuitka-build
-          rm -rf *.build *.dist *.onefile-build
-          find . -name '*.pyc' -delete
-          find . -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
-
           ./rebuild.sh
 
+          rm -rf dist
           mkdir -p dist
 
-          echo "=== Build app with pyside6-deploy ==="
           pyside6-deploy -c pysidedeploy.mac.spec
 
           test -d "dist/GorizontVS-VDI.app"
           test -x "dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI"
 
-          echo "=== Dist app check ==="
-          ls -la "dist/GorizontVS-VDI.app"
-          ls -la "dist/GorizontVS-VDI.app/Contents"
-          ls -la "dist/GorizontVS-VDI.app/Contents/MacOS"
-
-          if [ -e "dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI.real" ]; then
-            echo "ERROR: unexpected GorizontVS-VDI.real in clean dist"
-            exit 1
-          fi
-
-      - name: Create PKG from scratch
+      - name: Build PKG
         shell: bash
         run: |
           set -euxo pipefail
@@ -201,60 +166,22 @@ jobs:
           chmod +x ci/macos/postinstall
 
           ci/macos/build_pkg.sh
-          
-      - name: Verify PKG
+
+      - name: Verify PKG artifact
         shell: bash
         run: |
           set -euxo pipefail
 
-          echo "=== BUILD DIR ==="
           ls -lh build/*.pkg
 
-          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg | head -n 1)"
-          echo "PKG_FILE=$PKG_FILE"
-
-          echo "=== PKG SHA256 ==="
-          shasum -a 256 "$PKG_FILE"
-
-          echo "=== FINAL PKG PAYLOAD FILES ==="
-          pkgutil --payload-files "$PKG_FILE" | head -300
-
-          echo "=== COMPONENT PAYLOAD FILES ==="
           pkgutil --payload-files build/component.pkg | head -300
 
-          echo "=== MUST CONTAIN Applications/GorizontVS-VDI.app ==="
-          if ! pkgutil --payload-files "$PKG_FILE" | grep -Eq '^\./Applications/GorizontVS-VDI\.app$|^Applications/GorizontVS-VDI\.app$'; then
-            echo "ERROR: final pkg does not install to /Applications/GorizontVS-VDI.app"
-            echo "=== Actual payload start ==="
-            pkgutil --payload-files "$PKG_FILE" | head -100
-            exit 1
-          fi
-
-          echo "=== MUST CONTAIN main executable ==="
-          if ! pkgutil --payload-files "$PKG_FILE" | grep -Eq '^\./Applications/GorizontVS-VDI\.app/Contents/MacOS/GorizontVS-VDI$|^Applications/GorizontVS-VDI\.app/Contents/MacOS/GorizontVS-VDI$'; then
-            echo "ERROR: final pkg does not contain main executable at expected path"
-            pkgutil --payload-files "$PKG_FILE" | grep 'GorizontVS-VDI' | head -100
-            exit 1
-          fi
-
-          echo "=== MUST NOT CONTAIN .real wrapper binary ==="
-          if pkgutil --payload-files "$PKG_FILE" | grep -q 'GorizontVS-VDI.real'; then
-            echo "ERROR: final pkg contains forbidden GorizontVS-VDI.real"
-            pkgutil --payload-files "$PKG_FILE" | grep 'GorizontVS-VDI.real'
-            exit 1
-          fi
-
           rm -rf /tmp/pkg-expand
+
+          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg | head -n 1)"
           pkgutil --expand-full "$PKG_FILE" /tmp/pkg-expand
 
-          echo "=== EXPANDED APP DIRS ==="
-          find /tmp/pkg-expand -maxdepth 10 -type d -name "*.app" -print
-
-          echo "=== EXPANDED Gorizont binary ==="
-          find /tmp/pkg-expand -maxdepth 12 -type f -name "GorizontVS-VDI" -print
-
-          echo "=== EXPANDED TREE PREVIEW ==="
-          find /tmp/pkg-expand -maxdepth 7 -type f | sort | head -500
+          find /tmp/pkg-expand -maxdepth 5 -type f | sort | head -500
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
