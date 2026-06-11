@@ -24,7 +24,7 @@ from src.utils.types import AwaitableTask, RemovableFile
 log = logging.getLogger(__name__)
 
 try:
-    import psutil # type: ignore
+    import psutil  # type: ignore
 
     def process_iter(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         return psutil.process_iter(*args, **kwargs)
@@ -33,7 +33,6 @@ except ImportError:
 
     def process_iter(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:  # type: ignore[misc]
         return []
-
 
 
 _unlink_files: typing.List[RemovableFile] = []
@@ -140,7 +139,6 @@ def wait_for_tasks() -> None:
     _awaitable_tasks.clear()
 
 
-
 def terminate_tasks() -> None:
     log.debug("Terminating %d task(s)", len(_awaitable_tasks))
     for awaitable in list(_awaitable_tasks):
@@ -182,26 +180,49 @@ def execute_before_exit() -> None:
 
 def verify_signature(script: bytes, signature: bytes) -> bool:
     public_key = serialization.load_pem_public_key(
-        data=PUBLIC_KEY, backend=default_backend()
+        data=PUBLIC_KEY,
+        backend=default_backend(),
     )
+
+    # Подпись может прийти в разных вариантах:
+    # b"...=="      — чистая base64
+    # b"...==\n"    — настоящий перенос строки
+    # b"...==\\n"   — буквальные символы slash+n после repr/serialization
+    #
+    # RSA-проверку не отключаем. Чистим только base64-обёртку.
+    signature_b64 = signature.strip()
+    signature_b64 = signature_b64.replace(b"\\n", b"")
+    signature_b64 = signature_b64.replace(b"\\r", b"")
+    signature_b64 = signature_b64.replace(b"\n", b"")
+    signature_b64 = signature_b64.replace(b"\r", b"")
+    signature_b64 = signature_b64.replace(b"\t", b"")
+    signature_b64 = signature_b64.replace(b" ", b"")
+
+    try:
+        signature_raw = base64.b64decode(signature_b64, validate=True)
+    except Exception:
+        log.exception("Could not base64-decode transport signature")
+        return False
+
     try:
         public_key.verify(  # type: ignore[union-attr]
-            base64.b64decode(signature),
+            signature_raw,
             script,
             padding.PKCS1v15(),
             hashes.SHA256(),
         )
     except Exception:
+        log.exception("Transport script signature verify failed")
         return False
-    return True
 
+    return True
 
 
 def get_cacerts_file() -> typing.Optional[str]:
     if "CERTIFICATE_BUNDLE_PATH" in os.environ:
         return os.environ["CERTIFICATE_BUNDLE_PATH"]
     try:
-        import certifi # type: ignore
+        import certifi  # type: ignore
 
         if os.path.exists(certifi.where()):
             return certifi.where()
@@ -218,12 +239,13 @@ def get_cacerts_file() -> typing.Optional[str]:
     return None
 
 
-
 def is_macos() -> bool:
     return "darwin" in sys.platform
 
+
 def is_linux() -> bool:
     return "linux" in sys.platform
+
 
 def is_windows() -> bool:
     return "win" in sys.platform

@@ -248,7 +248,7 @@ jobs:
 
           rm -rf /tmp/pkg-expand
 
-          PKG_FILE="$(ls build/GorizontVS-VDI-With-SPICE-*.pkg | head -n 1)"
+          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg | head -n 1)"
           echo "$PKG_FILE" | tee build/debug/final-pkg-path.txt
 
           pkgutil --expand-full "$PKG_FILE" /tmp/pkg-expand
@@ -258,8 +258,8 @@ jobs:
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GorizontVS-VDI-with-SPICE-pkg-macos14-arm64
-          path: build/GorizontVS-VDI-With-SPICE-*.pkg
+          name: GorizontVS-VDI-Client-Setup-arm64
+          path: build/GorizontVS-VDI-Client-Setup-*.pkg
 
       - name: Upload debug info
         uses: actions/upload-artifact@v4
