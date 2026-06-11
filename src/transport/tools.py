@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import hashlib
 import logging
 import os
 import os.path
+import platform
 import random
 import socket
 import stat
@@ -24,7 +26,7 @@ from src.utils.types import AwaitableTask, RemovableFile
 log = logging.getLogger(__name__)
 
 try:
-    import psutil # type: ignore
+    import psutil  # type: ignore
 
     def process_iter(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         return psutil.process_iter(*args, **kwargs)
@@ -33,7 +35,6 @@ except ImportError:
 
     def process_iter(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:  # type: ignore[misc]
         return []
-
 
 
 _unlink_files: typing.List[RemovableFile] = []
@@ -140,7 +141,6 @@ def wait_for_tasks() -> None:
     _awaitable_tasks.clear()
 
 
-
 def terminate_tasks() -> None:
     log.debug("Terminating %d task(s)", len(_awaitable_tasks))
     for awaitable in list(_awaitable_tasks):
@@ -182,26 +182,73 @@ def execute_before_exit() -> None:
 
 def verify_signature(script: bytes, signature: bytes) -> bool:
     public_key = serialization.load_pem_public_key(
-        data=PUBLIC_KEY, backend=default_backend()
+        data=PUBLIC_KEY,
+        backend=default_backend(),
     )
+
+    try:
+        signature_raw = base64.b64decode(signature.strip())
+    except Exception as e:
+        log.exception("Could not base64-decode transport signature: %r", e)
+        signature_raw = signature
+
+    log.warning("=== VERIFY SIGNATURE DEBUG START ===")
+    log.warning("python executable: %s", sys.executable)
+    log.warning("python version: %s", sys.version.replace("\n", " "))
+    log.warning("platform: %s", platform.platform())
+
+    try:
+        import cryptography  # type: ignore
+
+        log.warning("cryptography version: %s", getattr(cryptography, "__version__", "unknown"))
+    except Exception as e:
+        log.warning("cryptography import failed: %r", e)
+
+    log.warning("PUBLIC_KEY len: %s", len(PUBLIC_KEY))
+    log.warning("PUBLIC_KEY sha256: %s", hashlib.sha256(PUBLIC_KEY).hexdigest())
+    log.warning("PUBLIC_KEY head: %r", PUBLIC_KEY[:80])
+    log.warning("PUBLIC_KEY tail: %r", PUBLIC_KEY[-80:])
+
+    log.warning("script bytes len: %s", len(script))
+    log.warning("script sha256: %s", hashlib.sha256(script).hexdigest())
+    log.warning("script head: %r", script[:300])
+    log.warning("script tail: %r", script[-300:])
+    log.warning("script count LF: %s", script.count(b"\n"))
+    log.warning("script count CRLF: %s", script.count(b"\r\n"))
+    log.warning("script count CR: %s", script.count(b"\r"))
+
+    log.warning("signature input len: %s", len(signature))
+    log.warning("signature input sha256: %s", hashlib.sha256(signature).hexdigest())
+    log.warning("signature input head: %r", signature[:120])
+    log.warning("signature input tail: %r", signature[-120:])
+
+    log.warning("signature raw len: %s", len(signature_raw))
+    log.warning("signature raw sha256: %s", hashlib.sha256(signature_raw).hexdigest())
+    log.warning("signature raw head: %r", signature_raw[:40])
+    log.warning("signature raw tail: %r", signature_raw[-40:])
+
     try:
         public_key.verify(  # type: ignore[union-attr]
-            base64.b64decode(signature),
+            signature_raw,
             script,
             padding.PKCS1v15(),
             hashes.SHA256(),
         )
-    except Exception:
+    except Exception as e:
+        log.exception("Transport script signature verify failed: %r", e)
+        log.warning("=== VERIFY SIGNATURE DEBUG END ===")
         return False
-    return True
 
+    log.warning("Transport script signature VALID")
+    log.warning("=== VERIFY SIGNATURE DEBUG END ===")
+    return True
 
 
 def get_cacerts_file() -> typing.Optional[str]:
     if "CERTIFICATE_BUNDLE_PATH" in os.environ:
         return os.environ["CERTIFICATE_BUNDLE_PATH"]
     try:
-        import certifi # type: ignore
+        import certifi  # type: ignore
 
         if os.path.exists(certifi.where()):
             return certifi.where()
@@ -218,12 +265,13 @@ def get_cacerts_file() -> typing.Optional[str]:
     return None
 
 
-
 def is_macos() -> bool:
     return "darwin" in sys.platform
 
+
 def is_linux() -> bool:
     return "linux" in sys.platform
+
 
 def is_windows() -> bool:
     return "win" in sys.platform

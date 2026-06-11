@@ -3,8 +3,10 @@ from __future__ import annotations
 import base64
 import bz2
 import contextlib
+import hashlib
 import json
 import logging
+import platform
 import re
 import ssl
 import subprocess
@@ -161,6 +163,45 @@ def _post_launch_cleanup() -> None:
         tools_mod.execute_before_exit()
 
 
+def _debug_transport_signature_input(script_bytes: bytes, signature: str) -> bytes:
+    signature_bytes_for_verify = signature.encode()
+
+    log.warning("=== TRANSPORT EXECUTOR SIGNATURE INPUT DEBUG START ===")
+    log.warning("python executable: %s", sys.executable)
+    log.warning("python version: %s", sys.version.replace("\n", " "))
+    log.warning("platform: %s", platform.platform())
+
+    log.warning("script_bytes len: %s", len(script_bytes))
+    log.warning("script_bytes sha256: %s", hashlib.sha256(script_bytes).hexdigest())
+    log.warning("script_bytes head: %r", script_bytes[:300])
+    log.warning("script_bytes tail: %r", script_bytes[-300:])
+    log.warning("script_bytes count LF: %s", script_bytes.count(b"\n"))
+    log.warning("script_bytes count CRLF: %s", script_bytes.count(b"\r\n"))
+    log.warning("script_bytes count CR: %s", script_bytes.count(b"\r"))
+
+    log.warning("signature str len: %s", len(signature))
+    log.warning("signature str head: %r", signature[:120])
+    log.warning("signature str tail: %r", signature[-120:])
+    log.warning("signature bytes len: %s", len(signature_bytes_for_verify))
+    log.warning(
+        "signature bytes sha256: %s",
+        hashlib.sha256(signature_bytes_for_verify).hexdigest(),
+    )
+
+    try:
+        log.warning(
+            "PUBLIC_KEY sha256 from tools_mod: %s",
+            hashlib.sha256(tools_mod.PUBLIC_KEY).hexdigest(),
+        )
+        log.warning("PUBLIC_KEY len from tools_mod: %s", len(tools_mod.PUBLIC_KEY))
+    except Exception as e:
+        log.warning("Cannot inspect tools_mod.PUBLIC_KEY: %r", e)
+
+    log.warning("=== TRANSPORT EXECUTOR SIGNATURE INPUT DEBUG END ===")
+
+    return signature_bytes_for_verify
+
+
 class _FetchAndRunWorker(QObject):
     finished = Signal()
     error = Signal(str, bool)
@@ -210,7 +251,12 @@ class _FetchAndRunWorker(QObject):
             result = data.get("result", data) if isinstance(data, dict) else data
             script_bytes, signature, params, log_data = _unpack_transport_result(result)
 
-            if not tools_mod.verify_signature(script_bytes, signature.encode()):
+            signature_bytes_for_verify = _debug_transport_signature_input(
+                script_bytes=script_bytes,
+                signature=signature,
+            )
+
+            if not tools_mod.verify_signature(script_bytes, signature_bytes_for_verify):
                 log.error("Transport script signature INVALID")
                 self.error.emit(
                     QCoreApplication.translate(
