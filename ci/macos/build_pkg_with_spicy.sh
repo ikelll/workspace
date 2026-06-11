@@ -245,7 +245,7 @@ pkgbuild \
 
 echo "==> Build final PKG"
 
-FINAL_PKG="$ROOT_DIR/build/GorizontVS-VDI-Client-Seetup-${APP_VERSION}-arm64.pkg"
+FINAL_PKG="$ROOT_DIR/build/GorizontVS-VDI-Client-Setup-${APP_VERSION}-arm64.pkg"
 
 productbuild \
   --package "$ROOT_DIR/build/component.pkg" \
