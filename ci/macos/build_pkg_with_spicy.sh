@@ -36,18 +36,33 @@ mkdir -p "$SPICE_DST/lib"
 mkdir -p "$SPICE_DST/lib/gstreamer-1.0"
 mkdir -p "$SPICE_DST/libexec/gstreamer-1.0"
 mkdir -p "$SPICE_DST/share"
+mkdir -p "$SPICE_DST/share/locale"
 
 echo "==> Copy built SPICE prefix"
 
 if [ ! -d "spice-full/build/spice/opt/homebrew" ]; then
   echo "ERROR: spice-full/build/spice/opt/homebrew not found"
-  find spice-full/build/spice -maxdepth 6 -type d 2>/dev/null || true
+  find spice-full/build/spice -maxdepth 8 -type d 2>/dev/null || true
   exit 1
 fi
 
 rsync -a "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
 
 test -x "$SPICE_DST/bin/spicy"
+
+echo "==> Copy custom SPICE translations from Makefile /usr output"
+
+if [ -d "spice-full/build/spice/usr/share/locale" ]; then
+  mkdir -p "$SPICE_DST/share/locale"
+  rsync -a "spice-full/build/spice/usr/share/locale/" "$SPICE_DST/share/locale/"
+fi
+
+echo "==> Copy custom SPICE translations from /opt/homebrew output if exists"
+
+if [ -d "spice-full/build/spice/opt/homebrew/share/locale" ]; then
+  mkdir -p "$SPICE_DST/share/locale"
+  rsync -a "spice-full/build/spice/opt/homebrew/share/locale/" "$SPICE_DST/share/locale/"
+fi
 
 echo "==> Copy GStreamer plugins/runtime"
 
@@ -114,6 +129,29 @@ do
   fi
 done
 
+echo "==> Re-copy custom SPICE translations after Homebrew locale copy"
+
+if [ -d "spice-full/build/spice/usr/share/locale" ]; then
+  mkdir -p "$SPICE_DST/share/locale"
+  rsync -a "spice-full/build/spice/usr/share/locale/" "$SPICE_DST/share/locale/"
+fi
+
+if [ -d "spice-full/build/spice/opt/homebrew/share/locale" ]; then
+  mkdir -p "$SPICE_DST/share/locale"
+  rsync -a "spice-full/build/spice/opt/homebrew/share/locale/" "$SPICE_DST/share/locale/"
+fi
+
+echo "==> Verify custom Russian spice-gtk translation"
+
+if [ -f "$SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo" ]; then
+  echo "OK: custom spice-gtk.mo bundled"
+  ls -lh "$SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo"
+else
+  echo "WARNING: custom spice-gtk.mo not found"
+  echo "Available locale files in spice build:"
+  find spice-full/build/spice -path "*/share/locale/*" -type f | sort || true
+fi
+
 echo "==> Copy gdk-pixbuf loaders"
 
 mkdir -p "$SPICE_DST/lib/gdk-pixbuf-2.0"
@@ -136,8 +174,6 @@ if [ -x "/opt/homebrew/bin/gdk-pixbuf-query-loaders" ]; then
       "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders/"*.so \
       > "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" || true
 
-    # gdk-pixbuf-query-loaders writes absolute paths.
-    # Rewrite them to the path used after installation.
     sed -i '' \
       "s#$SPICE_DST#/Applications/$APP_BUNDLE/Contents/Resources/spice#g" \
       "$SPICE_DST/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" || true
@@ -158,8 +194,6 @@ rm -f "$APP_FRAMEWORKS_DIR"/libgdk-4*.dylib || true
 
 echo "==> Remove invalid Contents/MacOS/spicy wrapper if exists"
 
-# Do NOT keep shell wrapper in Contents/MacOS.
-# codesign treats executable files inside Contents/MacOS as nested code objects.
 rm -f "$APP_MACOS_DIR/spicy" || true
 
 echo "==> Patch Info.plist"
@@ -254,6 +288,10 @@ if [ "$bad_homebrew" -eq 1 ]; then
   echo "ERROR: unresolved /opt/homebrew references remained"
   exit 1
 fi
+
+echo "==> Verify bundled locales"
+
+find "$SPICE_DST/share/locale" -type f | sort || true
 
 echo "==> Analyze component"
 

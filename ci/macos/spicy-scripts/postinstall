@@ -41,6 +41,12 @@ export GTK_DATA_PREFIX="$SPICE"
 export GTK_EXE_PREFIX="$SPICE"
 export GTK_PATH="$SPICE"
 
+export TEXTDOMAINDIR="$SPICE/share/locale"
+
+if [ -z "${LANGUAGE:-}" ] && [ -n "${LANG:-}" ]; then
+  export LANGUAGE="${LANG%%.*}"
+fi
+
 exec "$SPICE/bin/spicy" "$@"
 EOF
 

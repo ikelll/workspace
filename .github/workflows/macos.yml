@@ -203,7 +203,10 @@ jobs:
           mkdir -p build/debug
 
           echo "== SPICE build output =="
-          find spice-full/build/spice -maxdepth 6 -type f | sort | tee build/debug/spice-build-files.txt
+          find spice-full/build/spice -maxdepth 8 -type f | sort | tee build/debug/spice-build-files.txt
+
+          echo "== SPICE locale output =="
+          find spice-full/build/spice -path "*/share/locale/*" -type f | sort | tee build/debug/spice-locale-files.txt || true
 
           test -x spice-full/build/spice/opt/homebrew/bin/spicy
 
@@ -265,11 +268,14 @@ jobs:
 
           rm -rf /tmp/pkg-expand
 
-          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg build/GorizontVS-VDI-With-SPICE-*.pkg 2>/dev/null | head -n 1)"
+          PKG_FILE="$(find build -maxdepth 1 -type f \( \
+            -name 'GorizontVS-VDI-Client-Setup-*.pkg' -o \
+            -name 'GorizontVS-VDI-With-SPICE-*.pkg' \
+          \) | sort | head -n 1)"
 
-          if [ -z "$PKG_FILE" ]; then
+          if [ -z "${PKG_FILE:-}" ]; then
             echo "ERROR: final PKG not found"
-            ls -lh build || true
+            find build -maxdepth 1 -type f -print || true
             exit 1
           fi
 
@@ -283,9 +289,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GorizontVS-VDI-Client-Setup-arm64
-          path: |
-            build/GorizontVS-VDI-Client-Setup-*.pkg
-            build/GorizontVS-VDI-With-SPICE-*.pkg
+          path: build/GorizontVS-VDI-Client-Setup-*.pkg
+
+      - name: Upload component package for debug
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-component-pkg-debug
+          path: build/component.pkg
 
       - name: Upload debug info
         uses: actions/upload-artifact@v4
