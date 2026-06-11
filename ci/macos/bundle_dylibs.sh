@@ -3,13 +3,9 @@ set -euo pipefail
 
 APP_DIR="${1:?Usage: bundle_dylibs.sh /path/to/GorizontVS-VDI.app}"
 
-APP_NAME="${APP_NAME:-GorizontVS-VDI}"
-
 APP_BIN_DIR="$APP_DIR/Contents/MacOS"
 FRAMEWORKS_DIR="$APP_DIR/Contents/Frameworks"
 SPICE_DIR="$APP_DIR/Contents/Resources/spice"
-
-MAIN_APP_BIN="$APP_BIN_DIR/$APP_NAME"
 
 mkdir -p "$FRAMEWORKS_DIR"
 
@@ -25,18 +21,6 @@ is_system_lib() {
 is_macho() {
   local file_path="$1"
   file "$file_path" 2>/dev/null | grep -q "Mach-O"
-}
-
-real_path_for_compare() {
-  local path="$1"
-  local base
-  base="$(basename "$path")"
-
-  if [ -e "$path" ]; then
-    cd "$(dirname "$path")" && printf '%s/%s\n' "$(pwd -P)" "$base"
-  else
-    cd "$(dirname "$path")" && printf '%s/%s\n' "$(pwd -P)" "$base"
-  fi
 }
 
 resolve_lib() {
@@ -57,11 +41,12 @@ resolve_lib() {
     local name="${lib#@rpath/}"
 
     for base in \
+      "$APP_BIN_DIR" \
       "$FRAMEWORKS_DIR" \
-      "$SPICE_DIR/bin" \
       "$SPICE_DIR/lib" \
       "$SPICE_DIR/lib/gstreamer-1.0" \
       "/opt/homebrew/lib" \
+      "/opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13" \
       "/opt/homebrew/opt/gstreamer/lib" \
       "/opt/homebrew/opt/gstreamer/lib/gstreamer-1.0" \
       "/opt/homebrew/opt/gst-plugins-base/lib" \
@@ -109,60 +94,6 @@ resolve_lib() {
     return
   fi
 
-  if [[ "$lib" == /opt/homebrew/* ]]; then
-    local lib_base
-    lib_base="$(basename "$lib")"
-
-    for base in \
-      "$(dirname "$lib")" \
-      "/opt/homebrew/lib" \
-      "/opt/homebrew/opt/gstreamer/lib" \
-      "/opt/homebrew/opt/glib/lib" \
-      "/opt/homebrew/opt/gettext/lib" \
-      "/opt/homebrew/opt/openssl@3/lib" \
-      "/opt/homebrew/opt/krb5/lib" \
-      "/opt/homebrew/opt/cyrus-sasl/lib" \
-      "/opt/homebrew/opt/jpeg-turbo/lib" \
-      "/opt/homebrew/opt/opus/lib" \
-      "/opt/homebrew/opt/phodav/lib" \
-      "/opt/homebrew/opt/pixman/lib" \
-      "/opt/homebrew/opt/libusb/lib" \
-      "/opt/homebrew/opt/ffmpeg/lib" \
-      "/opt/homebrew/opt/x264/lib" \
-      "/opt/homebrew/opt/x265/lib" \
-      "/opt/homebrew/opt/aom/lib" \
-      "/opt/homebrew/opt/dav1d/lib" \
-      "/opt/homebrew/opt/libvpx/lib" \
-      "/opt/homebrew/opt/svt-av1/lib" \
-      "/opt/homebrew/opt/libogg/lib" \
-      "/opt/homebrew/opt/libvorbis/lib" \
-      "/opt/homebrew/opt/flac/lib" \
-      "/opt/homebrew/opt/lame/lib" \
-      "/opt/homebrew/opt/fdk-aac/lib" \
-      "/opt/homebrew/opt/libass/lib" \
-      "/opt/homebrew/opt/libpng/lib" \
-      "/opt/homebrew/opt/webp/lib" \
-      "/opt/homebrew/opt/jpeg-xl/lib"
-    do
-      if [ -f "$base/$lib_base" ]; then
-        echo "$base/$lib_base"
-        return
-      fi
-    done
-
-    found="$(
-      find /opt/homebrew/opt /opt/homebrew/Cellar \
-        -type f \
-        -name "$lib_base" \
-        2>/dev/null | head -n 1 || true
-    )"
-
-    if [ -n "$found" ] && [ -f "$found" ]; then
-      echo "$found"
-      return
-    fi
-  fi
-
   echo "$lib"
 }
 
@@ -188,37 +119,22 @@ copy_lib() {
     return 0
   fi
 
-  local dst="$FRAMEWORKS_DIR/$base"
-
-  local src_real
-  local dst_real
-
-  src_real="$(real_path_for_compare "$src")"
-  dst_real="$(real_path_for_compare "$dst")"
-
-  if [ "$src_real" = "$dst_real" ]; then
-    echo "KEEP EXISTING LOCAL LIB: $dst"
-    chmod u+w "$dst" || true
+  if [[ "$base" == libgtk-4* || "$base" == libgdk-4* || "$base" == libgraphene-1.0* ]]; then
+    echo "SKIP GTK4: $src"
     return 0
   fi
 
-  if [ -f "$dst" ]; then
-    echo "REPLACE EXISTING LIB: $dst <- $src"
-    chmod u+w "$dst" || true
-    rm -f "$dst"
-  else
-    echo "COPY: $src -> $dst"
-  fi
+  local dst="$FRAMEWORKS_DIR/$base"
 
-  cp -L "$src" "$dst"
-  chmod u+w "$dst" || true
+  if [ ! -f "$dst" ]; then
+    echo "COPY: $src -> $dst"
+    cp -L "$src" "$dst"
+    chmod u+w "$dst" || true
+  fi
 }
 
 collect_macho_files() {
-  {
-    find "$SPICE_DIR" -type f -print
-    find "$FRAMEWORKS_DIR" -type f -print
-  } | sort -u
+  find "$APP_DIR" -type f -print
 }
 
 rewrite_dep_to_local() {
@@ -228,9 +144,9 @@ rewrite_dep_to_local() {
   local dep_base
   dep_base="$(basename "$dep")"
 
-  if [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
+  if [ -f "$APP_BIN_DIR/$dep_base" ]; then
     install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
-  elif [ -f "$SPICE_DIR/bin/$dep_base" ]; then
+  elif [ -f "$FRAMEWORKS_DIR/$dep_base" ]; then
     install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
   elif [ -f "$SPICE_DIR/lib/$dep_base" ]; then
     install_name_tool -change "$dep" "@rpath/$dep_base" "$file_path" 2>/dev/null || true
@@ -241,13 +157,7 @@ rewrite_dep_to_local() {
   fi
 }
 
-echo "==> Bundle dylib dependencies for SPICE + Frameworks only"
-echo "APP_DIR=$APP_DIR"
-echo "SPICE_DIR=$SPICE_DIR"
-echo "FRAMEWORKS_DIR=$FRAMEWORKS_DIR"
-echo "PROTECTED MAIN APP BIN=$MAIN_APP_BIN"
-
-test -d "$SPICE_DIR"
+echo "==> Collect dylib dependencies"
 
 changed=1
 round=0
@@ -260,11 +170,6 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
 
   while IFS= read -r file_path; do
     is_macho "$file_path" || continue
-
-    if [ "$file_path" = "$MAIN_APP_BIN" ]; then
-      echo "ERROR: main app binary reached dependency scan unexpectedly: $file_path"
-      exit 1
-    fi
 
     loader_dir="$(dirname "$file_path")"
 
@@ -289,15 +194,10 @@ while [ "$changed" -eq 1 ] && [ "$round" -lt 30 ]; do
   done < <(collect_macho_files)
 done
 
-echo "==> Rewrite dylib paths and install names for SPICE + Frameworks only"
+echo "==> Rewrite dylib paths and install names"
 
 while IFS= read -r file_path; do
   is_macho "$file_path" || continue
-
-  if [ "$file_path" = "$MAIN_APP_BIN" ]; then
-    echo "ERROR: main app binary reached rewrite loop unexpectedly: $file_path"
-    exit 1
-  fi
 
   chmod u+w "$file_path" || true
 
@@ -307,7 +207,18 @@ while IFS= read -r file_path; do
     *.dylib|*.so|*.bundle)
       install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
       ;;
+    "$APP_BIN_DIR"/Qt*|"$APP_BIN_DIR"/Python|"$FRAMEWORKS_DIR"/Qt*|"$FRAMEWORKS_DIR"/Python)
+      install_name_tool -id "@rpath/$base" "$file_path" 2>/dev/null || true
+      ;;
   esac
+
+  install_name_tool -add_rpath "@executable_path" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
+
+  install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/.." "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/../Frameworks" "$file_path" 2>/dev/null || true
+  install_name_tool -add_rpath "@loader_path/../../Frameworks" "$file_path" 2>/dev/null || true
 
   install_name_tool -add_rpath "@loader_path/../lib" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../lib" "$file_path" 2>/dev/null || true
@@ -315,14 +226,9 @@ while IFS= read -r file_path; do
   install_name_tool -add_rpath "@loader_path/../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../Frameworks" "$file_path" 2>/dev/null || true
 
-  install_name_tool -add_rpath "@loader_path/.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../.." "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@loader_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
   install_name_tool -add_rpath "@executable_path/../../../../Frameworks" "$file_path" 2>/dev/null || true
-
-  install_name_tool -add_rpath "@loader_path" "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@loader_path/." "$file_path" 2>/dev/null || true
-  install_name_tool -add_rpath "@executable_path/../Frameworks" "$file_path" 2>/dev/null || true
 
   while IFS= read -r line; do
     dep="$(echo "$line" | awk '{print $1}')"
@@ -334,15 +240,10 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Second rewrite pass for /opt/homebrew refs"
+echo "==> Second rewrite pass after install names changed"
 
 while IFS= read -r file_path; do
   is_macho "$file_path" || continue
-
-  if [ "$file_path" = "$MAIN_APP_BIN" ]; then
-    echo "ERROR: main app binary reached second rewrite loop unexpectedly: $file_path"
-    exit 1
-  fi
 
   chmod u+w "$file_path" || true
 
@@ -360,17 +261,12 @@ while IFS= read -r file_path; do
   done < <(otool -L "$file_path" | tail -n +2 || true)
 done < <(collect_macho_files)
 
-echo "==> Validate: no /opt/homebrew refs in SPICE + Frameworks"
+echo "==> Validate: no /opt/homebrew dylib references"
 
 bad=0
 
 while IFS= read -r file_path; do
   is_macho "$file_path" || continue
-
-  if [ "$file_path" = "$MAIN_APP_BIN" ]; then
-    echo "ERROR: main app binary reached validation unexpectedly: $file_path"
-    exit 1
-  fi
 
   while IFS= read -r line; do
     dep="$(echo "$line" | awk '{print $1}')"
@@ -383,20 +279,8 @@ while IFS= read -r file_path; do
 done < <(collect_macho_files)
 
 if [ "$bad" -eq 1 ]; then
-  echo "ERROR: unresolved /opt/homebrew dependencies found in SPICE/Frameworks"
+  echo "ERROR: unresolved /opt/homebrew dependencies found"
   exit 1
 fi
 
-echo "==> Validate: main app binary was not renamed/touched"
-
-if [ ! -x "$MAIN_APP_BIN" ]; then
-  echo "ERROR: main app binary missing or not executable: $MAIN_APP_BIN"
-  exit 1
-fi
-
-if [ -e "$APP_BIN_DIR/${APP_NAME}.real" ]; then
-  echo "ERROR: unexpected wrapper real binary exists: $APP_BIN_DIR/${APP_NAME}.real"
-  exit 1
-fi
-
-echo "==> Dylib bundle OK for SPICE + Frameworks only"
+echo "==> Dylib bundle OK"
