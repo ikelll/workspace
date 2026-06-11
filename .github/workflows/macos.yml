@@ -17,7 +17,7 @@ env:
 
 jobs:
   build-pkg:
-    name: Build macOS 14+ unsigned PKG
+    name: Build macOS client-only PKG
     runs-on: macos-14
 
     steps:
@@ -28,16 +28,12 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-
           sw_vers
           uname -a
           arch
-
           which pkgbuild
           which productbuild
           which codesign
-          which install_name_tool
-          which otool
 
       - name: Install dependencies
         shell: bash
@@ -49,47 +45,10 @@ jobs:
           brew install \
             python@3.13 \
             krb5 \
-            gstreamer \
-            gst-plugins-base \
-            gst-plugins-good \
-            gst-plugins-bad \
-            gst-libav \
-            glib \
-            pixman \
-            meson \
-            ninja \
-            phodav \
-            opus \
-            jpeg-turbo \
-            openssl@3 \
-            libusb \
-            gettext \
-            cyrus-sasl \
-            pkg-config \
-            ffmpeg \
-            x264 \
-            x265 \
-            aom \
-            dav1d \
-            libvpx \
-            svt-av1 \
-            libogg \
-            libvorbis \
-            flac \
-            lame \
-            fdk-aac \
-            libass \
-            libpng \
-            webp \
-            jpeg-xl
+            pkg-config
 
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
-
-          /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing || \
-          /opt/homebrew/bin/python3 -m pip install --user pyparsing
-
-          /opt/homebrew/bin/python3 -c "import pyparsing; print('pyparsing OK')"
 
       - name: Prepare Python venv
         shell: bash
@@ -106,35 +65,6 @@ jobs:
           python --version
           pip --version
 
-      - name: Build SPICE stack
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          source venv/bin/activate
-
-          rm -rf spice-full
-          unzip spice-full.zip
-
-          cp makefiles/Makefile spice-full/Makefile
-          cp makefiles/meson.build-gtk-tools spice-full/spice-gtk/tools/meson.build
-          cp makefiles/spicy.c spice-full/spice-gtk/tools/spicy.c
-
-          cd spice-full
-
-          export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/cyrus-sasl/lib/pkgconfig:/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:${PKG_CONFIG_PATH:-}"
-          export CPPFLAGS="-I/opt/homebrew/include"
-          export LDFLAGS="-L/opt/homebrew/lib"
-          export MACOSX_DEPLOYMENT_TARGET="14.0"
-
-          pkg-config --modversion libsasl2
-          pkg-config --libs libsasl2
-
-          mkdir -p build/spice/usr/share/locale/ru/LC_MESSAGES
-
-          make
-
       - name: Build client app
         shell: bash
         run: |
@@ -143,7 +73,6 @@ jobs:
           source venv/bin/activate
 
           export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
-          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:${PKG_CONFIG_PATH:-}"
           export MACOSX_DEPLOYMENT_TARGET="14.0"
 
           ./rebuild.sh
@@ -156,18 +85,17 @@ jobs:
           test -d "dist/GorizontVS-VDI.app"
           test -x "dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI"
 
-      - name: Build PKG
+      - name: Build PKG client only
         shell: bash
         run: |
           set -euxo pipefail
 
-          chmod +x ci/macos/build_pkg.sh
-          chmod +x ci/macos/bundle_dylibs.sh
-          chmod +x ci/macos/postinstall
+          chmod +x ci/macos/build_pkg_client_only.sh
+          chmod +x ci/macos/postinstall_client_only.sh
 
-          ci/macos/build_pkg.sh
+          ci/macos/build_pkg_client_only.sh
 
-      - name: Verify PKG artifact
+      - name: Verify PKG
         shell: bash
         run: |
           set -euxo pipefail
@@ -178,7 +106,7 @@ jobs:
 
           rm -rf /tmp/pkg-expand
 
-          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Setup-*.pkg | head -n 1)"
+          PKG_FILE="$(ls build/GorizontVS-VDI-Client-Only-*.pkg | head -n 1)"
           pkgutil --expand-full "$PKG_FILE" /tmp/pkg-expand
 
           find /tmp/pkg-expand -maxdepth 5 -type f | sort | head -500
@@ -186,5 +114,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GorizontVS-VDI-pkg-macos14-arm64
-          path: build/GorizontVS-VDI-Client-Setup-*.pkg
+          name: GorizontVS-VDI-client-only-pkg-macos14-arm64
+          path: build/GorizontVS-VDI-Client-Only-*.pkg
