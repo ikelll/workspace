@@ -97,9 +97,12 @@ jobs:
 
           echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
-		  /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing 
 
           /opt/homebrew/bin/python3 --version
+
+          /opt/homebrew/bin/python3 -m pip install --break-system-packages pyparsing || \
+          /opt/homebrew/bin/python3 -m pip install --user pyparsing
+
           /opt/homebrew/bin/python3 -c "import pyparsing; print('system pyparsing OK')"
 
           brew list --versions | sort | tee build/debug/brew-versions.txt
@@ -170,11 +173,14 @@ jobs:
           export CPPFLAGS="-I/opt/homebrew/include"
           export LDFLAGS="-L/opt/homebrew/lib"
           export MACOSX_DEPLOYMENT_TARGET="14.0"
+          export PYTHON="/opt/homebrew/bin/python3"
+          export PYTHONPATH="$HOME/Library/Python/3.13/lib/python/site-packages:${PYTHONPATH:-}"
 
           meson --version
           ninja --version
           pkg-config --modversion libsasl2
           pkg-config --libs libsasl2
+
           /opt/homebrew/bin/python3 -c "import pyparsing; print('pyparsing OK for meson')"
 
           mkdir -p build/spice/usr/share/locale/ru/LC_MESSAGES
