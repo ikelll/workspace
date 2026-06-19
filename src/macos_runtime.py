@@ -33,9 +33,9 @@ def setup_macos_bundle_environment() -> None:
     prepend_env(
         "PATH",
         [
+            "/usr/local/bin",
             str(spice_bin),
             str(macos_dir),
-            "/usr/local/bin",
             "/opt/homebrew/bin",
             "/usr/bin",
             "/bin",
@@ -43,6 +43,7 @@ def setup_macos_bundle_environment() -> None:
             "/sbin",
         ],
     )
+
 
     prepend_env(
         "DYLD_FALLBACK_LIBRARY_PATH",
