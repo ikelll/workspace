@@ -37,6 +37,7 @@ mkdir -p "$SPICE_DST/lib/gstreamer-1.0"
 mkdir -p "$SPICE_DST/libexec/gstreamer-1.0"
 mkdir -p "$SPICE_DST/share"
 mkdir -p "$SPICE_DST/share/locale"
+mkdir -p "$SPICE_DST/share/hwdata"
 
 echo "==> Copy built SPICE prefix"
 
@@ -50,18 +51,32 @@ rsync -a "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
 
 test -x "$SPICE_DST/bin/spicy"
 
+echo "==> Copy usb.ids"
+
+mkdir -p "$SPICE_DST/share/hwdata"
+
+if [ -f "$ROOT_DIR/usb.ids" ]; then
+  cp -f "$ROOT_DIR/usb.ids" "$SPICE_DST/share/hwdata/usb.ids"
+elif [ -f "usb.ids" ]; then
+  cp -f "usb.ids" "$SPICE_DST/share/hwdata/usb.ids"
+elif [ -f "/opt/homebrew/share/hwdata/usb.ids" ]; then
+  cp -f "/opt/homebrew/share/hwdata/usb.ids" "$SPICE_DST/share/hwdata/usb.ids"
+else
+  echo "WARNING: usb.ids not found"
+fi
+
+echo "==> Copy SPICE translations from /opt/homebrew output if exists"
+
+if [ -d "spice-full/build/spice/opt/homebrew/share/locale" ]; then
+  mkdir -p "$SPICE_DST/share/locale"
+  rsync -a "spice-full/build/spice/opt/homebrew/share/locale/" "$SPICE_DST/share/locale/"
+fi
+
 echo "==> Copy custom SPICE translations from Makefile /usr output"
 
 if [ -d "spice-full/build/spice/usr/share/locale" ]; then
   mkdir -p "$SPICE_DST/share/locale"
   rsync -a "spice-full/build/spice/usr/share/locale/" "$SPICE_DST/share/locale/"
-fi
-
-echo "==> Copy custom SPICE translations from /opt/homebrew output if exists"
-
-if [ -d "spice-full/build/spice/opt/homebrew/share/locale" ]; then
-  mkdir -p "$SPICE_DST/share/locale"
-  rsync -a "spice-full/build/spice/opt/homebrew/share/locale/" "$SPICE_DST/share/locale/"
 fi
 
 echo "==> Copy GStreamer plugins/runtime"
@@ -129,16 +144,28 @@ do
   fi
 done
 
-echo "==> Re-copy custom SPICE translations after Homebrew locale copy"
+echo "==> Re-copy usb.ids after Homebrew data copy"
 
-if [ -d "spice-full/build/spice/usr/share/locale" ]; then
-  mkdir -p "$SPICE_DST/share/locale"
-  rsync -a "spice-full/build/spice/usr/share/locale/" "$SPICE_DST/share/locale/"
+mkdir -p "$SPICE_DST/share/hwdata"
+
+if [ -f "$ROOT_DIR/usb.ids" ]; then
+  cp -f "$ROOT_DIR/usb.ids" "$SPICE_DST/share/hwdata/usb.ids"
+elif [ -f "usb.ids" ]; then
+  cp -f "usb.ids" "$SPICE_DST/share/hwdata/usb.ids"
+elif [ -f "/opt/homebrew/share/hwdata/usb.ids" ]; then
+  cp -f "/opt/homebrew/share/hwdata/usb.ids" "$SPICE_DST/share/hwdata/usb.ids"
 fi
+
+echo "==> Re-copy custom SPICE translations after Homebrew locale copy"
 
 if [ -d "spice-full/build/spice/opt/homebrew/share/locale" ]; then
   mkdir -p "$SPICE_DST/share/locale"
   rsync -a "spice-full/build/spice/opt/homebrew/share/locale/" "$SPICE_DST/share/locale/"
+fi
+
+if [ -d "spice-full/build/spice/usr/share/locale" ]; then
+  mkdir -p "$SPICE_DST/share/locale"
+  rsync -a "spice-full/build/spice/usr/share/locale/" "$SPICE_DST/share/locale/"
 fi
 
 echo "==> Verify custom Russian spice-gtk translation"
@@ -150,6 +177,15 @@ else
   echo "WARNING: custom spice-gtk.mo not found"
   echo "Available locale files in spice build:"
   find spice-full/build/spice -path "*/share/locale/*" -type f | sort || true
+fi
+
+echo "==> Verify usb.ids"
+
+if [ -f "$SPICE_DST/share/hwdata/usb.ids" ]; then
+  echo "OK: usb.ids bundled"
+  ls -lh "$SPICE_DST/share/hwdata/usb.ids"
+else
+  echo "WARNING: usb.ids not bundled"
 fi
 
 echo "==> Copy gdk-pixbuf loaders"
@@ -206,11 +242,26 @@ PLIST="$APP_DST/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$PLIST" 2>/dev/null || true
 
+echo "==> Remove LSEnvironment from Info.plist if exists"
+
+# Окружение теперь задаётся в macos_runtime.py.
+# Не держим в Info.plist старые абсолютные пути и /Users/ruslan.
+#/usr/libexec/PlistBuddy -c "Print :LSEnvironment" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Delete :LSEnvironment" "$PLIST" 2>/dev/null || true
+
 echo "==> Validate structure"
 
 test -x "$APP_MACOS_DIR/$APP_NAME"
 test -x "$SPICE_DST/bin/spicy"
 test -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
+
+if [ ! -f "$SPICE_DST/share/hwdata/usb.ids" ]; then
+  echo "WARNING: $SPICE_DST/share/hwdata/usb.ids is missing"
+fi
+
+if [ ! -f "$SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo" ]; then
+  echo "WARNING: $SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo is missing"
+fi
 
 echo "==> Permissions"
 
@@ -292,6 +343,10 @@ fi
 echo "==> Verify bundled locales"
 
 find "$SPICE_DST/share/locale" -type f | sort || true
+
+echo "==> Verify bundled hwdata"
+
+find "$SPICE_DST/share/hwdata" -type f | sort || true
 
 echo "==> Analyze component"
 
