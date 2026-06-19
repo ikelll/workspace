@@ -22,6 +22,15 @@
 #include <libintl.h>
 #include <string.h>
 
+
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#include <limits.h>
+#include <stdlib.h>
+#endif
+
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -64,6 +73,35 @@ static void init_i18n(void)
     strcat(exe_dir, "\\locale");
 
     bindtextdomain(GETTEXT_PACKAGE, exe_dir);
+
+#elif defined(__APPLE__)
+    char exe_path[PATH_MAX];
+    char real_exe_path[PATH_MAX];
+    uint32_t size = sizeof(exe_path);
+
+    if (_NSGetExecutablePath(exe_path, &size) == 0 &&
+        realpath(exe_path, real_exe_path) != NULL) {
+
+        /*
+         * spicy лежит:
+         *   Contents/Resources/spice/bin/spicy
+         *
+         * переводы лежат:
+         *   Contents/Resources/spice/share/locale/ru/LC_MESSAGES/spice-gtk.mo
+         */
+        char *bin_dir = g_path_get_dirname(real_exe_path);
+        char *spice_dir = g_path_get_dirname(bin_dir);
+        char *locale_dir = g_build_filename(spice_dir, "share", "locale", NULL);
+
+        bindtextdomain(GETTEXT_PACKAGE, locale_dir);
+
+        g_free(locale_dir);
+        g_free(spice_dir);
+        g_free(bin_dir);
+    } else {
+        bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
+    }
+
 #else
     bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
 #endif
