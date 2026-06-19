@@ -41,8 +41,6 @@ mkdir -p "$APP_SUPPORT" || true
 
 export PATH="$SPICE/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-# В нормальном bundle dylib должны быть переписаны через @rpath/@loader_path.
-# DYLD_* может чиститься macOS/sudo, поэтому не делаем на него единственную ставку.
 export DYLD_FALLBACK_LIBRARY_PATH="$APP/Contents/Frameworks:$SPICE/lib:$SPICE/lib/gstreamer-1.0:/usr/lib"
 
 export GST_PLUGIN_PATH_1_0="$SPICE/lib/gstreamer-1.0"
@@ -68,15 +66,62 @@ export LANG="${LANG:-ru_RU.UTF-8}"
 export LC_MESSAGES="${LC_MESSAGES:-ru_RU.UTF-8}"
 export LANGUAGE="${LANGUAGE:-ru}"
 
-# На macOS USB redirect через libusb часто требует root для claim interface.
-# sudo -n не спрашивает пароль: либо sudoers разрешил, либо сразу ошибка.
-exec /usr/bin/sudo -n -E "$SPICY_BIN" "$@"
+# 1. Быстрый путь: если sudoers разрешает запуск без пароля — запускаем сразу.
+if /usr/bin/sudo -n -E "$SPICY_BIN" "$@" 2>/tmp/gorizontvs-spicy-sudo.err; then
+  exit 0
+fi
+
+# 2. Если sudo -n не сработал, показываем GUI-запрос прав администратора.
+# Это нужно для обычных пользователей, которые не входят в admin,
+# но могут ввести логин/пароль администратора macOS.
+
+build_shell_command() {
+  local cmd=""
+
+  cmd+="PATH=$(printf '%q' "$PATH") "
+  cmd+="DYLD_FALLBACK_LIBRARY_PATH=$(printf '%q' "$DYLD_FALLBACK_LIBRARY_PATH") "
+  cmd+="GST_PLUGIN_PATH_1_0=$(printf '%q' "$GST_PLUGIN_PATH_1_0") "
+  cmd+="GST_PLUGIN_SCANNER=$(printf '%q' "$GST_PLUGIN_SCANNER") "
+  cmd+="GST_REGISTRY_REUSE_PLUGIN_SCANNER=$(printf '%q' "$GST_REGISTRY_REUSE_PLUGIN_SCANNER") "
+  cmd+="GST_REGISTRY=$(printf '%q' "$GST_REGISTRY") "
+  cmd+="GIO_MODULE_DIR=$(printf '%q' "$GIO_MODULE_DIR") "
+  cmd+="GI_TYPELIB_PATH=$(printf '%q' "$GI_TYPELIB_PATH") "
+  cmd+="GDK_PIXBUF_MODULEDIR=$(printf '%q' "$GDK_PIXBUF_MODULEDIR") "
+  cmd+="GDK_PIXBUF_MODULE_FILE=$(printf '%q' "$GDK_PIXBUF_MODULE_FILE") "
+  cmd+="XDG_DATA_DIRS=$(printf '%q' "$XDG_DATA_DIRS") "
+  cmd+="GTK_DATA_PREFIX=$(printf '%q' "$GTK_DATA_PREFIX") "
+  cmd+="GTK_EXE_PREFIX=$(printf '%q' "$GTK_EXE_PREFIX") "
+  cmd+="GTK_PATH=$(printf '%q' "$GTK_PATH") "
+  cmd+="TEXTDOMAINDIR=$(printf '%q' "$TEXTDOMAINDIR") "
+  cmd+="USB_IDS_PATH=$(printf '%q' "$USB_IDS_PATH") "
+  cmd+="LANG=$(printf '%q' "$LANG") "
+  cmd+="LC_MESSAGES=$(printf '%q' "$LC_MESSAGES") "
+  cmd+="LANGUAGE=$(printf '%q' "$LANGUAGE") "
+
+  cmd+="exec $(printf '%q' "$SPICY_BIN")"
+
+  for arg in "$@"; do
+    cmd+=" $(printf '%q' "$arg")"
+  done
+
+  printf '%s' "$cmd"
+}
+
+CMD="$(build_shell_command "$@")"
+
+# Передаём команду в AppleScript через argv, чтобы не ломаться на кавычках.
+exec /usr/bin/osascript - "$CMD" <<'OSA'
+on run argv
+    set shellCommand to item 1 of argv
+    do shell script shellCommand with administrator privileges
+end run
+OSA
 EOF
 
 chown root:wheel "$WRAPPER"
 chmod 755 "$WRAPPER"
 
-echo "postinstall: install sudoers rule for bundled spicy"
+echo "postinstall: install sudoers rule for admin users"
 
 cat > "$SUDOERS_FILE" <<EOF
 # GorizontVS-VDI: allow admin users to run bundled spicy as root without password.
