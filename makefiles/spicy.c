@@ -22,15 +22,6 @@
 #include <libintl.h>
 #include <string.h>
 
-
-
-#ifdef __APPLE__
-#include <mach-o/dyld.h>
-#include <limits.h>
-#include <stdlib.h>
-#endif
-
-
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -73,35 +64,6 @@ static void init_i18n(void)
     strcat(exe_dir, "\\locale");
 
     bindtextdomain(GETTEXT_PACKAGE, exe_dir);
-
-#elif defined(__APPLE__)
-    char exe_path[PATH_MAX];
-    char real_exe_path[PATH_MAX];
-    uint32_t size = sizeof(exe_path);
-
-    if (_NSGetExecutablePath(exe_path, &size) == 0 &&
-        realpath(exe_path, real_exe_path) != NULL) {
-
-        /*
-         * spicy лежит:
-         *   Contents/Resources/spice/bin/spicy
-         *
-         * переводы лежат:
-         *   Contents/Resources/spice/share/locale/ru/LC_MESSAGES/spice-gtk.mo
-         */
-        char *bin_dir = g_path_get_dirname(real_exe_path);
-        char *spice_dir = g_path_get_dirname(bin_dir);
-        char *locale_dir = g_build_filename(spice_dir, "share", "locale", NULL);
-
-        bindtextdomain(GETTEXT_PACKAGE, locale_dir);
-
-        g_free(locale_dir);
-        g_free(spice_dir);
-        g_free(bin_dir);
-    } else {
-        bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
-    }
-
 #else
     bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
 #endif
@@ -2825,6 +2787,26 @@ usb_filter_append_tuple(GString *s,
                            klass, vid, pid, bcd, allow);
 }
 
+static void
+append_builtin_usb_deny_rules(GString *s)
+{
+    /*
+     * Built-in system USB blacklist.
+     *
+     * These classes are blocked before user policy rules are evaluated,
+     * so they remain denied even when --usb-default-action=allow is used.
+     */
+
+    /* Wireless Controller: Bluetooth and similar wireless USB devices. */
+    usb_filter_append_tuple(s, 0xe0, -1, -1, -1, 0);
+
+    /* CDC / Communications: modems, network-like and control interfaces. */
+    usb_filter_append_tuple(s, 0x02, -1, -1, -1, 0);
+
+    /* CDC Data: data interfaces for CDC/network/modem-like devices. */
+    usb_filter_append_tuple(s, 0x0a, -1, -1, -1, 0);
+}
+
 static gchar *
 build_usb_filter_string(const gchar *policy, gboolean default_allow, GError **err)
 {
@@ -2889,6 +2871,8 @@ build_usb_manual_policy_filter(UsbPolicyAction default_action,
 
     s = g_string_new(NULL);
 
+    append_builtin_usb_deny_rules(s);
+
     for (i = 0; usb_policy_rules && i < usb_policy_rules->len; i++) {
         const gchar *rule = g_ptr_array_index(usb_policy_rules, i);
         UsbPolicyAction action;
@@ -2933,6 +2917,8 @@ build_usb_auto_policy_filter(UsbPolicyAction default_policy_action,
     guint i;
 
     s = g_string_new(NULL);
+
+    append_builtin_usb_deny_rules(s);
 
     for (i = 0; usb_policy_rules && i < usb_policy_rules->len; i++) {
         const gchar *rule = g_ptr_array_index(usb_policy_rules, i);
