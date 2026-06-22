@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: GorizontVS-VDI
-  APP_BUNDLE: GorizontVS-VDI.app
+  APP_NAME: Gorizont-VS-VDI
+  APP_BUNDLE: Gorizont-VS-VDI.app
   APP_VERSION: "1.8"
   PKG_IDENTIFIER: ru.gorizont.vdi
   MACOSX_DEPLOYMENT_TARGET: "14.0"
@@ -230,16 +230,16 @@ jobs:
 
           pyside6-deploy -c pysidedeploy.mac.spec
 
-          test -d "dist/GorizontVS-VDI.app"
-          test -x "dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI"
+          test -d "dist/Gorizont-VS-VDI.app"
+          test -x "dist/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI"
 
           mkdir -p build/debug
 
           echo "== DIST APP FILES =="
-          find dist/GorizontVS-VDI.app -maxdepth 5 -type f | sort | tee build/debug/dist-app-files.txt
+          find dist/Gorizont-VS-VDI.app -maxdepth 5 -type f | sort | tee build/debug/dist-app-files.txt
 
           echo "== DIST MAIN BINARY =="
-          file dist/GorizontVS-VDI.app/Contents/MacOS/GorizontVS-VDI \
+          file dist/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI \
             | tee build/debug/dist-main-binary-file.txt
 
       - name: Build PKG with SPICE
@@ -269,8 +269,8 @@ jobs:
           rm -rf /tmp/pkg-expand
 
           PKG_FILE="$(find build -maxdepth 1 -type f \( \
-            -name 'GorizontVS-VDI-Client-Setup-*.pkg' -o \
-            -name 'GorizontVS-VDI-With-SPICE-*.pkg' \
+            -name 'Gorizont-VS-VDI-Client-Setup-*.pkg' -o \
+            -name 'Gorizont-VS-VDI-With-SPICE-*.pkg' \
           \) | sort | head -n 1)"
 
           if [ -z "${PKG_FILE:-}" ]; then
@@ -288,8 +288,8 @@ jobs:
       - name: Upload PKG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GorizontVS-VDI-Client-Setup-arm64
-          path: build/GorizontVS-VDI-Client-Setup-*.pkg
+          name: Gorizont-VS-VDI-Client-Setup-arm64
+          path: build/Gorizont-VS-VDI-Client-Setup-*.pkg
 
       - name: Upload component package for debug
         uses: actions/upload-artifact@v4

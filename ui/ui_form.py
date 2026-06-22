@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'form.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.3
+## Created by: Qt User Interface Compiler version 6.11.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -311,7 +311,7 @@ class Ui_Widget(object):
         self.scrollProfiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 98, 50))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 74, 50))
         self.verticalLayout_5 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_5.setObjectName(u"verticalLayout_5")
         self.wProfilesListHost = QWidget(self.scrollAreaWidgetContents)
@@ -516,6 +516,8 @@ class Ui_Widget(object):
 
         self.frameTopSearch = QFrame(self.frameTopBar)
         self.frameTopSearch.setObjectName(u"frameTopSearch")
+        self.frameTopSearch.setMinimumSize(QSize(320, 40))
+        self.frameTopSearch.setMaximumSize(QSize(420, 100))
         self.frameTopSearch.setFrameShape(QFrame.Shape.StyledPanel)
         self.frameTopSearch.setFrameShadow(QFrame.Shadow.Raised)
         self.horizontalLayout_7 = QHBoxLayout(self.frameTopSearch)
@@ -532,9 +534,21 @@ class Ui_Widget(object):
 
         self.hlytTopBar.addWidget(self.frameTopSearch)
 
-        self.horizontalSpacer_13 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_23 = QSpacerItem(10, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
-        self.hlytTopBar.addItem(self.horizontalSpacer_13)
+        self.hlytTopBar.addItem(self.horizontalSpacer_23)
+
+        self.btnRefresh = QPushButton(self.frameTopBar)
+        self.btnRefresh.setObjectName(u"btnRefresh")
+        self.btnRefresh.setMinimumSize(QSize(35, 35))
+        self.btnRefresh.setMaximumSize(QSize(35, 35))
+        self.btnRefresh.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        self.hlytTopBar.addWidget(self.btnRefresh)
+
+        self.horizontalSpacer_24 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.hlytTopBar.addItem(self.horizontalSpacer_24)
 
         self.btnUserAvatar = QPushButton(self.frameTopBar)
         self.btnUserAvatar.setObjectName(u"btnUserAvatar")
@@ -741,7 +755,7 @@ class Ui_Widget(object):
         self.scrollDesktops.setWidgetResizable(True)
         self.wDesktopsScrollHost = QWidget()
         self.wDesktopsScrollHost.setObjectName(u"wDesktopsScrollHost")
-        self.wDesktopsScrollHost.setGeometry(QRect(0, 0, 98, 70))
+        self.wDesktopsScrollHost.setGeometry(QRect(0, 0, 81, 70))
         self.gridLayout_4 = QGridLayout(self.wDesktopsScrollHost)
         self.gridLayout_4.setObjectName(u"gridLayout_4")
         self.verticalLayout_16 = QVBoxLayout()
@@ -879,7 +893,7 @@ class Ui_Widget(object):
         self.scrollHome.setWidgetResizable(True)
         self.wHomeScrollHost = QWidget()
         self.wHomeScrollHost.setObjectName(u"wHomeScrollHost")
-        self.wHomeScrollHost.setGeometry(QRect(0, 0, 98, 70))
+        self.wHomeScrollHost.setGeometry(QRect(0, 0, 72, 86))
         self.verticalLayout_15 = QVBoxLayout(self.wHomeScrollHost)
         self.verticalLayout_15.setObjectName(u"verticalLayout_15")
         self.verticalLayout_18 = QVBoxLayout()
@@ -1047,7 +1061,7 @@ class Ui_Widget(object):
     # setupUi
 
     def retranslateUi(self, Widget):
-        Widget.setWindowTitle(QCoreApplication.translate("Widget", u"Gorizont-VS VDI", None))
+        Widget.setWindowTitle(QCoreApplication.translate("Widget", u"Gorizont-VS-VDI", None))
         self.btnConnect.setText(QCoreApplication.translate("Widget", u"Continue", None))
         self.lblServerErrorBanner.setText("")
         self.leServerUrl.setText("")
@@ -1076,7 +1090,8 @@ class Ui_Widget(object):
         self.btnLoginLanguage.setText("")
         self.btnLoginThemeToggle.setText("")
         self.lblTopLogo.setText("")
-        self.leWorkspaceSearch.setPlaceholderText(QCoreApplication.translate("Widget", u"Search in Gorizont-VS VDI", None))
+        self.leWorkspaceSearch.setPlaceholderText(QCoreApplication.translate("Widget", u"Search in Gorizont-VS-VDI", None))
+        self.btnRefresh.setText("")
         self.btnUserAvatar.setText("")
         self.btnHomeIcon.setText("")
         self.btnHome.setText(QCoreApplication.translate("Widget", u"Home", None))

@@ -1688,7 +1688,7 @@
            <item>
             <widget class="QStackedWidget" name="stackedWidgetMainContent">
              <property name="currentIndex">
-              <number>3</number>
+              <number>0</number>
              </property>
              <widget class="QWidget" name="pageDesktops">
               <layout class="QVBoxLayout" name="verticalLayout_12">
@@ -1757,8 +1757,8 @@
                      <rect>
                       <x>0</x>
                       <y>0</y>
-                      <width>81</width>
-                      <height>70</height>
+                      <width>417</width>
+                      <height>369</height>
                      </rect>
                     </property>
                     <layout class="QGridLayout" name="gridLayout_4">
@@ -1860,8 +1860,8 @@
                      <rect>
                       <x>0</x>
                       <y>0</y>
-                      <width>99</width>
-                      <height>70</height>
+                      <width>417</width>
+                      <height>369</height>
                      </rect>
                     </property>
                     <layout class="QGridLayout" name="gridLayout_8">
@@ -1950,8 +1950,8 @@
                      <rect>
                       <x>0</x>
                       <y>0</y>
-                      <width>72</width>
-                      <height>86</height>
+                      <width>417</width>
+                      <height>379</height>
                      </rect>
                     </property>
                     <layout class="QVBoxLayout" name="verticalLayout_15">

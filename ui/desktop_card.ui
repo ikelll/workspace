@@ -127,9 +127,9 @@
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_3">
      <item>
-      <widget class="QLabel" name="lblDesktopSubtitle">
+      <widget class="QLabel" name="lblDesktopStatus">
        <property name="text">
-        <string notr="true">Virtual desktop</string>
+        <string notr="true">Status</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>

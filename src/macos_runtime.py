@@ -20,7 +20,7 @@ def setup_macos_bundle_environment() -> None:
     gst_plugins = spice_lib / "gstreamer-1.0"
     gst_scanner = spice_dir / "libexec" / "gstreamer-1.0" / "gst-plugin-scanner"
 
-    app_support = Path.home() / "Library" / "Application Support" / "GorizontVS"
+    app_support = Path.home() / "Library" / "Application Support" / "Gorizont-VS"
     app_support.mkdir(parents=True, exist_ok=True)
 
     def prepend_env(name: str, values: list[str]) -> None:

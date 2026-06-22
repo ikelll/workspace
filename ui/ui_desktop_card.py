@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'desktop_card.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.3
+## Created by: Qt User Interface Compiler version 6.11.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -77,12 +77,12 @@ class Ui_desktopCard(object):
 
         self.verticalLayout_3 = QVBoxLayout()
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.lblDesktopSubtitle = QLabel(desktopCard)
-        self.lblDesktopSubtitle.setObjectName(u"lblDesktopSubtitle")
-        self.lblDesktopSubtitle.setText(u"Virtual desktop")
-        self.lblDesktopSubtitle.setWordWrap(True)
+        self.lblDesktopStatus = QLabel(desktopCard)
+        self.lblDesktopStatus.setObjectName(u"lblDesktopStatus")
+        self.lblDesktopStatus.setText(u"Status")
+        self.lblDesktopStatus.setWordWrap(True)
 
-        self.verticalLayout_3.addWidget(self.lblDesktopSubtitle)
+        self.verticalLayout_3.addWidget(self.lblDesktopStatus)
 
         self.lblDesktopTransport = QLabel(desktopCard)
         self.lblDesktopTransport.setObjectName(u"lblDesktopTransport")
