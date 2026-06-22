@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${1:?Usage: bundle_dylibs_spicy.sh /path/to/GorizontVS-VDI.app}"
+APP_DIR="${1:?Usage: bundle_dylibs_spicy.sh /path/to/Gorizont-VS-VDI.app}"
 
 APP_BIN_DIR="$APP_DIR/Contents/MacOS"
 FRAMEWORKS_DIR="$APP_DIR/Contents/Frameworks"

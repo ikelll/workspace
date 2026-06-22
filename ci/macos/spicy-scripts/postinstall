@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP="/Applications/GorizontVS-VDI.app"
+APP="/Applications/Gorizont-VS-VDI.app"
 SPICE="$APP/Contents/Resources/spice"
 FRAMEWORKS="$APP/Contents/Frameworks"
 SPICY_BIN="$SPICE/bin/spicy"
@@ -26,7 +26,7 @@ cat > "$WRAPPER" <<'EOF'
 #!/bin/bash
 set -e
 
-APP="/Applications/GorizontVS-VDI.app"
+APP="/Applications/Gorizont-VS-VDI.app"
 SPICE="$APP/Contents/Resources/spice"
 FRAMEWORKS="$APP/Contents/Frameworks"
 SPICY_BIN="$SPICE/bin/spicy"
@@ -37,7 +37,7 @@ if [ ! -x "$SPICY_BIN" ]; then
 fi
 
 USER_HOME="${HOME:-/tmp}"
-APP_SUPPORT="$USER_HOME/Library/Application Support/GorizontVS"
+APP_SUPPORT="$USER_HOME/Library/Application Support/Gorizont-VS"
 
 mkdir -p "$APP_SUPPORT" || true
 
@@ -132,7 +132,7 @@ chmod 755 "$WRAPPER"
 echo "postinstall: install sudoers rule for admin users"
 
 cat > "$SUDOERS_FILE" <<EOF
-# GorizontVS-VDI
+# Gorizont-VS-VDI
 # Allow macOS admin users to run bundled spicy as root without password.
 # This is needed for libusb USB redirection on macOS.
 

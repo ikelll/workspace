@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="${APP_NAME:-GorizontVS-VDI}"
-APP_BUNDLE="${APP_BUNDLE:-GorizontVS-VDI.app}"
+APP_NAME="${APP_NAME:-Gorizont-VS-VDI}"
+APP_BUNDLE="${APP_BUNDLE:-Gorizont-VS-VDI.app}"
 APP_VERSION="${APP_VERSION:-1.8}"
 PKG_IDENTIFIER="${PKG_IDENTIFIER:-ru.gorizont.vdi}"
 DEPLOY_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}"
@@ -370,7 +370,7 @@ pkgbuild \
 
 echo "==> Build final PKG"
 
-FINAL_PKG="$ROOT_DIR/build/GorizontVS-VDI-Client-Setup-${APP_VERSION}-arm64.pkg"
+FINAL_PKG="$ROOT_DIR/build/Gorizont-VS-VDI-Client-Setup-${APP_VERSION}-arm64.pkg"
 
 productbuild \
   --package "$ROOT_DIR/build/component.pkg" \
