@@ -31,7 +31,7 @@ spice:
 spice-gtk:
 	cd spice-gtk && \
 	rm -rf $(BUILD_DIR) && \
-	meson setup $(BUILD_DIR) -Dwebdav=enabled -Dsmartcard=disabled -Dsasl=disabled -Dusbredir=enabled -Dusb-ids-path="/Applications/GorizontVS-VDI.app/Contents/Resources/spice/share/hwdata/usb.ids" --prefix=$(PREFIX) && \
+	meson setup $(BUILD_DIR) -Dwebdav=enabled -Dsmartcard=disabled -Dsasl=disabled -Dusbredir=enabled -Dusb-ids-path="/Applications/Gorizont-VS-VDI.app/Contents/Resources/spice/share/hwdata/usb.ids" --prefix=$(PREFIX) && \
 	ninja -C $(BUILD_DIR) && \
 	ninja -C $(BUILD_DIR) install && \
 	cd po && \
