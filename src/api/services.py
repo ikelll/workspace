@@ -7,6 +7,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QCoreApplication, Signal # type: ignore
 
 from src.api.client import ApiClient
+from src.api.error_messages import translate_server_message
 from src.api import endpoints as ep
 
 log = logging.getLogger(__name__)
@@ -50,6 +51,10 @@ class ServiceInfo:
     allow_poweron: bool = False
     show_transports: bool = False
     custom_message: str | None = None
+    status_code: str = ""
+    status_label: str = ""
+    status_detail: str = ""
+    status_updated_at: str = ""
 
     @property
     def is_available(self) -> bool:
@@ -57,8 +62,26 @@ class ServiceInfo:
 
     @property
     def status_text(self) -> str:
+        code = self.status_code.strip().lower()
+        catalog = {
+            "on": QCoreApplication.translate("ServiceInfo", "Powered on"),
+            "off": QCoreApplication.translate("ServiceInfo", "Powered off"),
+            "maintenance": QCoreApplication.translate("ServiceInfo", "This service is in maintenance mode"),
+            "rebooting": QCoreApplication.translate("ServiceInfo", "Rebooting"),
+            "powering_on": QCoreApplication.translate("ServiceInfo", "Powering on"),
+            "powering_off": QCoreApplication.translate("ServiceInfo", "Powering off"),
+            "preparing": QCoreApplication.translate("ServiceInfo", "Preparing"),
+            "unavailable": QCoreApplication.translate("ServiceInfo", "Unavailable"),
+            "in_use": QCoreApplication.translate("ServiceInfo", "In use"),
+            "available": QCoreApplication.translate("ServiceInfo", "Available"),
+        }
+        if code in catalog:
+            return catalog[code]
+        if self.status_label:
+            return self.status_label
+
         if self.maintenance:
-            return QCoreApplication.translate("ServiceInfo", "In maintenance")
+            return QCoreApplication.translate("ServiceInfo", "This service is in maintenance mode")
         if self.not_accessible:
             return QCoreApplication.translate("ServiceInfo", "Unavailable")
         if self.in_use:
@@ -85,7 +108,7 @@ class ServicesAPI(QObject):
     services_error = Signal(str)
     connect_ready = Signal(str, str)
     connect_error = Signal(str)
-    action_done = Signal()
+    action_done = Signal(str, str)
 
     def __init__(self, client: ApiClient, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -133,7 +156,7 @@ class ServicesAPI(QObject):
 
     def _on_services_fail(self, msg: str, code: int) -> None:
         log.warning("Failed to fetch services: %s (status=%d)", msg, code)
-        self.services_error.emit(msg)
+        self.services_error.emit(translate_server_message(msg))
 
     @staticmethod
     def _coerce_optional_bool(value: Any) -> bool | None:
@@ -150,6 +173,13 @@ class ServicesAPI(QObject):
             if normalized in {"0", "false", "no", "n", "off", ""}:
                 return False
         return None
+    
+    @staticmethod
+    def _clean_optional_text(value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
 
     @staticmethod
     def _parse_service(raw: dict) -> ServiceInfo | None:
@@ -197,13 +227,17 @@ class ServicesAPI(QObject):
             is_meta=bool(raw.get("is_meta", False)),
             in_use=bool(raw.get("in_use", False)),
             maintenance=bool(raw.get("maintenance", False)),
-            not_accessible=bool(raw.get("not_accesible", False)),
+            not_accessible=bool(raw.get("not_accesible", raw.get("not_accessible", False))),
             allow_remove=bool(raw.get("allow_users_remove", False)),
             allow_reset=bool(raw.get("allow_users_reset", False)),
             allow_poweroff=bool(raw.get("allow_users_poweroff", False)),
             allow_poweron=bool(raw.get("allow_users_poweron", False)),
             show_transports=bool(raw.get("show_transports", False)),
-            custom_message=raw.get("custom_message_text"),
+            custom_message=ServicesAPI._clean_optional_text(raw.get("custom_message_text")),
+            status_code=str(raw.get("status_code", raw.get("status", "")) or "").strip(),
+            status_label=ServicesAPI._clean_optional_text(raw.get("status_text")) or "",
+            status_detail=ServicesAPI._clean_optional_text(raw.get("status_detail")) or "",
+            status_updated_at=ServicesAPI._clean_optional_text(raw.get("status_updated_at")) or "",
         )
 
     def connect_service(self, service_id: str, transport_id: str) -> None:
@@ -219,23 +253,25 @@ class ServicesAPI(QObject):
         error = data.get("error", "") if isinstance(data, dict) else ""
         if error:
             log.warning("Connect error: %s", error)
-            self.connect_error.emit(str(error))
+            self.connect_error.emit(translate_server_message(error))
             return
         log.info("Connect ready for %s: %s", service_id, str(result)[:60])
         self.connect_ready.emit(service_id, str(result))
 
     def _on_connect_fail(self, msg: str) -> None:
         log.warning("Connect request failed: %s", msg)
-        self.connect_error.emit(msg)
+        self.connect_error.emit(translate_server_message(msg))
 
     def service_action(self, service_id: str, action: str) -> None:
         path = f"{ep.SERVICES_OVERVIEW}/{service_id}/action/{action}"
         self._client.get(
             path,
             on_success=lambda _: self._on_action_ok(service_id, action),
-            on_error=lambda msg, code: self.connect_error.emit(msg),
+            on_error=lambda msg, code: self.connect_error.emit(
+                translate_server_message(msg)
+            ),
         )
 
     def _on_action_ok(self, service_id: str, action: str) -> None:
         log.info("Action '%s' on %s completed", action, service_id)
-        self.action_done.emit()
+        self.action_done.emit(service_id, action)

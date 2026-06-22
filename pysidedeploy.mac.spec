@@ -1,7 +1,7 @@
 [app]
-title = GorizontVS-VDI
+title = Gorizont-VS-VDI
 project_dir = .
-input_file = GorizontVS-VDI.py
+input_file = Gorizont-VS-VDI.py
 project_file = pyproject.toml
 exec_directory = dist
 

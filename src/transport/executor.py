@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 from PySide6.QtCore import QCoreApplication, QObject, QThread, Signal  # type: ignore
 
+from src.api.error_messages import translate_server_message
 from src.dialogs.app_dialogs import confirm_certificate
 from src.ssl_trust import SslTrustStore, fetch_certificate_info
 from src.transport import consts as tc  # noqa: F401
@@ -74,7 +75,7 @@ def _fetch_json(
     req = urllib.request.Request(url, headers=headers)
     try:
         ctx = _build_ssl_context(check_certificate)
-        with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
+        with urllib.request.urlopen(req, context=ctx, timeout=600) as resp:
             raw = resp.read()
         return json.loads(raw.decode("utf-8"))
     except urllib.error.URLError as exc:
@@ -96,27 +97,65 @@ def _unpack_transport_result(
     res: typing.Any,
 ) -> typing.Tuple[bytes, str, dict, dict]:
     if isinstance(res, dict):
+        nested_error = res.get("error") or res.get("detail") or res.get("message")
+        if nested_error:
+            raise TransportError(translate_server_message(nested_error))
+
+        if not all(key in res for key in ("script", "signature", "params")):
+            log.warning("Transport endpoint returned unsupported object: %r", res)
+            raise TransportError(
+                QCoreApplication.translate(
+                    "TransportExecutor",
+                    "The server did not return a transport script.",
+                )
+            )
+
         script = bz2.decompress(base64.b64decode(res["script"]))
         signature = res["signature"]
         params = json.loads(bz2.decompress(base64.b64decode(res["params"])))
         log_data = res.get("log", {})
         return script, signature, params, log_data
 
-    if isinstance(res, str) and res.startswith("TransportScript("):
-        script_b64 = re.search(r"script='([^']+)'", res)
-        sig_b64 = re.search(r"signature_b64='([^']+)'", res)
-        params_match = re.search(r"parameters=({.+})\)$", res, re.DOTALL)
-        import ast
+    if isinstance(res, str):
+        text = res.strip()
+        if text.startswith("TransportScript("):
+            script_b64 = re.search(r"script='([^']+)'", text)
+            sig_b64 = re.search(r"signature_b64='([^']+)'", text)
+            params_match = re.search(r"parameters=({.+})\)$", text, re.DOTALL)
+            import ast
 
-        if not script_b64 or not sig_b64:
-            raise TransportError("Cannot parse TransportScript response")
+            if not script_b64 or not sig_b64:
+                raise TransportError(
+                    QCoreApplication.translate(
+                        "TransportExecutor",
+                        "Cannot parse transport script response.",
+                    )
+                )
 
-        script = bz2.decompress(base64.b64decode(script_b64.group(1)))
-        signature = sig_b64.group(1)
-        params = ast.literal_eval(params_match.group(1)) if params_match else {}
-        return script, signature, params, {}
+            script = bz2.decompress(base64.b64decode(script_b64.group(1)))
+            signature = sig_b64.group(1)
+            params = ast.literal_eval(params_match.group(1)) if params_match else {}
+            return script, signature, params, {}
 
-    raise TransportError(f"Unsupported response format: {type(res)}")
+        if text:
+            log.warning("Transport endpoint returned error text instead of a script: %r", text[:300])
+            raise TransportError(translate_server_message(text))
+
+        log.warning("Transport endpoint returned an empty string instead of a script")
+        raise TransportError(
+            QCoreApplication.translate(
+                "TransportExecutor",
+                "The server did not return a transport script.",
+            )
+        )
+
+    log.warning("Transport endpoint returned unsupported response type: %s", type(res))
+    raise TransportError(
+        QCoreApplication.translate(
+            "TransportExecutor",
+            "The server did not return a transport script.",
+        )
+    )
 
 
 class _SubprocessWaitPatcher:
@@ -203,7 +242,7 @@ class _FetchAndRunWorker(QObject):
             if isinstance(data, dict) and "error" in data:
                 error_msg = data["error"]
                 retryable = data.get("is_retrayable", data.get("retryable", "0")) == "1"
-                self.error.emit(str(error_msg), retryable)
+                self.error.emit(translate_server_message(error_msg), retryable)
                 self.finished.emit()
                 return
 

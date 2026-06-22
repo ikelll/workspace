@@ -16,6 +16,7 @@ from PySide6.QtNetwork import ( # type: ignore
 )
 
 from src.api.endpoints import HEADER_AUTH_TOKEN, HEADER_CONTENT_TYPE, USER_AGENT  # noqa: F401
+from src.api.error_messages import translate_server_message
 from src.dialogs.app_dialogs import confirm_certificate
 from src.ssl_trust import SslTrustStore, default_port_for_scheme, describe_der_certificate
 
@@ -340,7 +341,7 @@ class ApiClient(QObject):
                 msg = f"HTTP {status}"
 
             log.warning("HTTP %d: %s (url=%s)", status, msg, reply.url().toString())
-            on_error(msg, status)
+            on_error(translate_server_message(msg), status)
             return status, None
 
         log.debug(

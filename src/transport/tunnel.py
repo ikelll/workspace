@@ -92,7 +92,7 @@ class ForwardServer(socketserver.ThreadingTCPServer):
         self.status = ForwardState.TUNNEL_LISTENING
         self.can_stop = False
 
-        timeout = timeout or 60
+        timeout = timeout or 600
         self.timer = threading.Timer(
             timeout, ForwardServer._set_stoppable, args=(self,)
         )

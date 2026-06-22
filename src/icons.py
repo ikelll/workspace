@@ -150,3 +150,29 @@ def icon_apps_nav(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
 
 def icon_desktops_nav(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
     return svg_icon(_static_path("nav-desktops.svg"), size, color)
+
+
+def icon_power_on(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("power_on.svg"), size, color)
+
+
+def icon_power_off(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("power_off.svg"), size, color)
+
+
+def icon_refresh(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("refresh.svg"), size, color)
+
+
+def icon_moon(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("moon.svg"), size, color)
+
+
+def icon_sun(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("sun.svg"), size, color)
+
+def icon_transport(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("transport.svg"), size, color)
+
+def icon_actions(size: int = 18, color: str = DEFAULT_ICON_COLOR) -> QIcon:
+    return svg_icon(_static_path("actions.svg"), size, color)

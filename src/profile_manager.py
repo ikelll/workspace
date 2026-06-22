@@ -100,12 +100,30 @@ class ProfileManager:
         self._s.endArray()
         self._s.sync()
 
-    def find_by_connection(self, server_url: str, auth_id: str) -> Profile | None:
-        host = server_url.split("://", 1)[-1].rstrip("/").split("/", 1)[0].lower()
+    @staticmethod
+    def _host_key(server_url: str) -> str:
+        return server_url.split("://", 1)[-1].rstrip("/").split("/", 1)[0].lower()
+
+    @staticmethod
+    def _username_key(username: str) -> str:
+        return username.strip().casefold()
+
+    def find_by_connection(
+        self,
+        server_url: str,
+        auth_id: str,
+        username: str | None = None,
+    ) -> Profile | None:
+        host = self._host_key(server_url)
+        user_key = self._username_key(username or "")
+
         for p in self.load_all():
-            p_host = p.server_url.split("://", 1)[-1].rstrip("/").split("/", 1)[0].lower()
-            if p_host == host and p.auth_id == auth_id:
-                return p
+            if self._host_key(p.server_url) != host or p.auth_id != auth_id:
+                continue
+
+            if username is None or self._username_key(p.username) == user_key:
+                 return p
+
         return None
 
     def add_or_update(self, profile: Profile) -> None:

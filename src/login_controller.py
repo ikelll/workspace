@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from PySide6.QtCore import QObject, QSettings, Qt, Signal  # type: ignore
+from PySide6.QtCore import QCoreApplication, QObject, QSettings, Qt, Signal  # type: ignore
 from PySide6.QtGui import QAction, QPixmap  # type: ignore
 from PySide6.QtWidgets import (  # type: ignore
     QLabel,
@@ -475,8 +475,8 @@ class LoginController(QObject):
             self._le_creds_user.setPlaceholderText(self.tr("Leave empty for automatic login"))
             self._le_creds_pass.setPlaceholderText(self.tr("Leave empty for automatic login"))
         else:
-            self._le_creds_user.setPlaceholderText("")
-            self._le_creds_pass.setPlaceholderText("")
+            self._le_creds_user.setPlaceholderText(self.tr("Username"))
+            self._le_creds_pass.setPlaceholderText(self.tr("Password"))
 
         self._btn_creds_login.setText(self.tr("Login"))
 
@@ -550,7 +550,11 @@ class LoginController(QObject):
 
             effective_username = typed_user or username
 
-            existing = self._pm.find_by_connection(self._setup_server_url, auth_id)
+            existing = self._pm.find_by_connection(
+                self._setup_server_url,
+                auth_id,
+                effective_username,
+            )
             if existing:
                 existing.auth_name = auth_name
                 existing.username = effective_username or existing.username

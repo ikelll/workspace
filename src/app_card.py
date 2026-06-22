@@ -16,7 +16,7 @@ class AppCard(QFrame):
     clicked = Signal(object)
     action_clicked = Signal(object, str)
     favorite_clicked = Signal(object, bool)
-    menu_clicked = Signal(object)
+    menu_clicked = Signal(object, object)
 
     def __init__(
         self,
@@ -40,7 +40,6 @@ class AppCard(QFrame):
         self.ui.lblAppName.setText(title)
         self.ui.lblAppName.setWordWrap(True)
         self.ui.lblAppName.setAlignment(Qt.AlignCenter)
-        self.ui.lblAppName.setToolTip(description or title)
 
         initials = "".join(part[:1] for part in title.split()[:2]).upper() or "A"
         image_id = getattr(service, "image_id", "")
@@ -59,7 +58,7 @@ class AppCard(QFrame):
         self._sync_favorite_text(False)
 
         self.ui.btnAppMenu.setText("⋯")
-        self.ui.btnAppMenu.clicked.connect(lambda: self.menu_clicked.emit(self.service))
+        self.ui.btnAppMenu.clicked.connect(lambda: self.menu_clicked.emit(self.service, self.ui.btnAppMenu))
 
         self._blocked_widgets = {
             getattr(self.ui, "btnAppAction", None),
@@ -68,8 +67,11 @@ class AppCard(QFrame):
         }
         self._install_click_forwarding()
 
-        tooltip = description or getattr(service, "status_text", "") or title
-        self.setToolTip(tooltip)
+    def set_menu_available(self, available: bool) -> None:
+        self.ui.btnAppMenu.setEnabled(available)
+        self.ui.btnAppMenu.setToolTip(
+            self.tr("Service menu") if available else self.tr("No actions available")
+        )
 
     def set_favorite(self, checked: bool) -> None:
         self.ui.btnAppFavorite.blockSignals(True)

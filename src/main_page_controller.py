@@ -5,10 +5,18 @@ import logging
 from typing import Iterable
 
 from PySide6.QtCore import QCoreApplication, QObject, QSettings, Qt, Signal # type: ignore
-from PySide6.QtWidgets import QLabel, QGridLayout, QLayout, QVBoxLayout # type: ignore
+from PySide6.QtGui import QAction, QCursor # type: ignore
+from PySide6.QtWidgets import QLabel, QGridLayout, QLayout, QMenu, QVBoxLayout, QWidget # type: ignore
 
 from src.app_card import AppCard
 from src.desktop_card import DesktopCard
+from src.icons import (
+    icon_actions,
+    icon_power_off,
+    icon_power_on,
+    icon_refresh,
+    icon_transport,
+)
 from src.service_image_loader import ServiceImageLoader
 
 log = logging.getLogger(__name__)
@@ -16,6 +24,7 @@ log = logging.getLogger(__name__)
 
 class MainPageController(QObject):
     connect_requested = Signal(object)
+    transport_requested = Signal(object, object)
     action_requested = Signal(object, str)
 
     def __init__(
@@ -33,6 +42,7 @@ class MainPageController(QObject):
         self._services: list[object] = []
         self._favorite_ids: set[str] = set(self._load_favorites())
         self._image_loader = image_loader
+        self._active_service_menu: QMenu | None = None
 
         self._home_layout: QVBoxLayout = self.ui.vlytHomeContent
         self._apps_grid: QGridLayout = self.ui.gridAppsCards
@@ -425,6 +435,7 @@ class MainPageController(QObject):
 
     def _wire_app_card(self, card: AppCard) -> None:
         card.set_favorite(self._is_favorite(card.service))
+        card.set_menu_available(self._service_menu_available(card.service))
         card.clicked.connect(self.connect_requested.emit)
         card.action_clicked.connect(self.action_requested.emit)
         card.favorite_clicked.connect(self._on_favorite_changed)
@@ -432,6 +443,7 @@ class MainPageController(QObject):
 
     def _wire_desktop_card(self, card: DesktopCard) -> None:
         card.set_favorite(self._is_favorite(card.service))
+        card.set_menu_available(self._service_menu_available(card.service))
         card.clicked.connect(self.connect_requested.emit)
         card.action_clicked.connect(self.action_requested.emit)
         card.favorite_clicked.connect(self._on_favorite_changed)
@@ -450,8 +462,96 @@ class MainPageController(QObject):
         self._save_favorites()
         self._rebuild_pages()
 
-    def _on_card_menu_requested(self, svc: object) -> None:
-        del svc
+    def _on_card_menu_requested(self, svc: object, button: QWidget | None = None) -> None:
+        menu = self._create_service_menu(button or self.ui.pageMain)
+
+        transport_menu = self._add_submenu(menu, icon_transport(), self.tr("Transport"))
+        transports = self._service_transports(svc)
+        transport_menu.setEnabled(len(transports) > 1)
+        if transports:
+            for transport in transports:
+                label = self._transport_label(transport)
+                action = transport_menu.addAction(icon_transport(16), label)
+                self._prepare_menu_action(action)
+                action.triggered.connect(
+                    lambda _checked=False, selected=transport: self.transport_requested.emit(svc, selected)
+                )
+        else:
+            placeholder = transport_menu.addAction(self.tr("No transports available"))
+            placeholder.setEnabled(False)
+            self._prepare_menu_action(placeholder)
+
+        actions_menu = self._add_submenu(menu, icon_actions(), self.tr("Actions"))
+        available_actions = self._available_service_actions(svc)
+        actions_menu.setEnabled(bool(available_actions))
+        if available_actions:
+            for action_key, label, icon in available_actions:
+                action = actions_menu.addAction(icon, label)
+                self._prepare_menu_action(action)
+                action.triggered.connect(
+                    lambda _checked=False, key=action_key: self.action_requested.emit(svc, key)
+                )
+        else:
+            placeholder = actions_menu.addAction(self.tr("No actions available"))
+            placeholder.setEnabled(False)
+            self._prepare_menu_action(placeholder)
+
+        self._active_service_menu = menu
+        menu.aboutToHide.connect(lambda: setattr(self, "_active_service_menu", None))
+
+        if button is not None:
+            menu.popup(button.mapToGlobal(button.rect().bottomRight()))
+        else:
+            menu.popup(QCursor.pos())
+
+    def _create_service_menu(self, parent: QWidget | None = None) -> QMenu:
+        menu = QMenu(parent)
+        menu.setObjectName("serviceCardMenu")
+        menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self._prepare_service_popup(menu)
+        return menu
+
+    def _add_submenu(self, menu: QMenu, icon, title: str) -> QMenu:
+        submenu = menu.addMenu(icon, title)
+        submenu.setObjectName("serviceCardMenu")
+        self._prepare_service_popup(submenu)
+        self._prepare_menu_action(submenu.menuAction())
+        return submenu
+
+    def _prepare_service_popup(self, menu: QMenu) -> None:
+        menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        menu.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+        menu.setWindowFlag(Qt.WindowType.NoDropShadowWindowHint, True)
+        menu.setCursor(Qt.CursorShape.PointingHandCursor)
+        menu.menuAction().setIconVisibleInMenu(True)
+
+    def _prepare_menu_action(self, action: QAction) -> None:
+        action.setIconVisibleInMenu(True)
+
+    def _service_transports(self, svc: object) -> list[object]:
+        transports = getattr(svc, "transports", []) or []
+        return list(transports)
+
+    def _transport_label(self, transport: object) -> str:
+        name = str(getattr(transport, "name", "") or "").strip()
+        transport_type = str(getattr(transport, "transport_type", "") or "").strip()
+        if name and transport_type and name.lower() != transport_type.lower():
+            return f"{name} · {transport_type}"
+        return name or transport_type or self.tr("Transport")
+
+    def _available_service_actions(self, svc: object) -> list[tuple[str, str, object]]:
+        actions: list[tuple[str, str, object]] = []
+        if bool(getattr(svc, "allow_poweron", False)):
+            actions.append(("poweron", self.tr("Power on"), icon_power_on()))
+        if bool(getattr(svc, "allow_poweroff", False)):
+            actions.append(("poweroff", self.tr("Power off"), icon_power_off()))
+        if bool(getattr(svc, "allow_reset", False)):
+            actions.append(("reset", self.tr("Reset"), icon_refresh()))
+        return actions
+
+    def _service_menu_available(self, svc: object) -> bool:
+        return len(self._service_transports(svc)) > 1 or bool(self._available_service_actions(svc))
+ 
 
     def _set_empty_state(self, kind: str, visible: bool, text: str | None = None) -> None:
         mapping = {

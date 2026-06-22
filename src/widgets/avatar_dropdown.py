@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -24,12 +24,19 @@ class AvatarDropdownPopup(QWidget):
     logout_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        super().__init__(
+            parent,
+            Qt.WindowType.Popup
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.NoDropShadowWindowHint,
+        )
         self.setObjectName("avatarDropdownPopup")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAutoFillBackground(False)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(0)
 
         self.card = QFrame(self)
@@ -39,7 +46,7 @@ class AvatarDropdownPopup(QWidget):
         effect = QGraphicsDropShadowEffect(self.card)
         effect.setBlurRadius(30)
         effect.setOffset(0, 10)
-        effect.setColor(Qt.black)
+        effect.setColor(QColor(15, 23, 42, 55))
         self.card.setGraphicsEffect(effect)
 
         card_layout = QVBoxLayout(self.card)
@@ -75,10 +82,10 @@ class AvatarDropdownPopup(QWidget):
         actions.setSpacing(10)
         card_layout.addLayout(actions)
 
-        self.btnSettings = QPushButton(self.card)
-        self.btnSettings.setObjectName("btnAvatarDropdownAction")
-        self.btnSettings.setCursor(Qt.CursorShape.PointingHandCursor)
-        actions.addWidget(self.btnSettings, 1)
+        # self.btnSettings = QPushButton(self.card)
+        # self.btnSettings.setObjectName("btnAvatarDropdownAction")
+        # self.btnSettings.setCursor(Qt.CursorShape.PointingHandCursor)
+        # actions.addWidget(self.btnSettings, 1)
 
         self.btnLogout = QPushButton(self.card)
         self.btnLogout.setObjectName("btnAvatarDropdownDanger")
@@ -87,8 +94,9 @@ class AvatarDropdownPopup(QWidget):
 
         self._populate_defaults()
         self._wire_events()
+        self._apply_interactive_cursors()
 
-        self.resize(292, self.sizeHint().height())
+        self.resize(316, self.sizeHint().height())
 
     def _add_combo_row(
         self,
@@ -131,8 +139,15 @@ class AvatarDropdownPopup(QWidget):
     def _wire_events(self) -> None:
         self.cmbLanguage.currentIndexChanged.connect(self._emit_language)
         self.cmbTheme.currentIndexChanged.connect(self._emit_theme)
-        self.btnSettings.clicked.connect(self._on_settings_clicked)
+        # self.btnSettings.clicked.connect(self._on_settings_clicked)
         self.btnLogout.clicked.connect(self._on_logout_clicked)
+
+    def _apply_interactive_cursors(self) -> None:
+        for widget in (self.cmbLanguage, self.cmbTheme, self.btnLogout):
+            widget.setCursor(Qt.CursorShape.PointingHandCursor)
+        for combo in (self.cmbLanguage, self.cmbTheme):
+            combo.view().setCursor(Qt.CursorShape.PointingHandCursor)
+            combo.view().viewport().setCursor(Qt.CursorShape.PointingHandCursor)
 
     def _fill_combo(self, combo: UnifiedComboBox, items: Iterable[tuple[str, str]]) -> None:
         combo.blockSignals(True)
@@ -157,7 +172,7 @@ class AvatarDropdownPopup(QWidget):
         self.lblSubtitle.setText(subtitle)
         self.lblLanguage.setText(language_label)
         self.lblTheme.setText(theme_label)
-        self.btnSettings.setText(settings_text)
+        # self.btnSettings.setText(settings_text)
         self.btnLogout.setText(logout_text)
 
         current_language = self.current_language()
@@ -196,7 +211,7 @@ class AvatarDropdownPopup(QWidget):
 
     def popup_for(self, anchor: QWidget) -> None:
         self.adjustSize()
-        width = max(292, self.sizeHint().width())
+        width = max(316, self.sizeHint().width())
         self.resize(width, self.sizeHint().height())
 
         anchor_global = anchor.mapToGlobal(QPoint(anchor.width() - self.width(), anchor.height() + 10))

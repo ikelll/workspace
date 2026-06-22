@@ -7,6 +7,7 @@ from PySide6.QtCore import QCoreApplication, QObject, Signal  # type: ignore
 from PySide6.QtCore import QUrl
 
 from src.api.client import ApiClient
+from src.api.error_messages import translate_server_message
 from src.api import endpoints as ep
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ class AuthService(QObject):
 
     authenticators_ready = Signal(list) 
     auth_error = Signal(str)
-    login_success = Signal(str, str)  # token, username
+    login_success = Signal(str, str, str)
     login_error = Signal(str) 
     logged_out = Signal()
 
@@ -249,9 +250,13 @@ class AuthService(QObject):
         result = data.get("result", "")
 
         if result != "ok":
-            error_msg = data.get("error", QCoreApplication.translate("AuthService", "Invalid username or password"))
-            log.warning("Login rejected by server: %s", error_msg)
-            self.login_error.emit(str(error_msg))
+            raw_error = data.get(
+                "error",
+                QCoreApplication.translate("AuthService", "Invalid username or password"),
+            )
+            error_msg = translate_server_message(raw_error)
+            log.warning("Login rejected by server: %s", raw_error)
+            self.login_error.emit(error_msg)
             return
         
         token = str(data.get("token", ""))
@@ -268,13 +273,17 @@ class AuthService(QObject):
         self._scrambler = str(data.get("scrambler", ""))
         self._client.set_token(token)
         self._client.set_scrambler(self._scrambler)
+        last_login = str(data.get("last_login", "") or "")
         log.info("Login successful, token=<REDACTED> (len=%d)", len(token))
-        self.login_success.emit(token, self._username)
+        self.login_success.emit(token, self._username, last_login)
 
     def _on_login_fail(self, msg: str, code: int) -> None:
+        raw_msg = msg
         if code == 401 or code == 403:
             msg = QCoreApplication.translate("AuthService", "Invalid username or password")
-        log.warning("Login failed: %s (status=%d)", msg, code)
+        else:
+            msg = translate_server_message(msg)
+        log.warning("Login failed: %s (status=%d)", raw_msg, code)
         self._negotiate_client = None
         self.login_error.emit(msg)
 
