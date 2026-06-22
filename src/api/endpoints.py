@@ -4,6 +4,7 @@ AUTH_AUTHS = "/gorizontvs/rest/auth/auths"
 AUTH_LOGIN = "/gorizontvs/rest/auth/login"
 AUTH_LOGOUT = "/gorizontvs/rest/auth/logout"
 AUTH_LOGIN_NEGOTIATE = "/gorizontvs/rest/auth/login_negotiate"
+AUTH_MFA = "/gorizontvs/rest/auth/mfa"
 
 SERVICES_OVERVIEW = "/gorizontvs/rest/connection"
 SERVICE_IMAGE_WEB = "/gorizontvs/webapi/img/gallery"

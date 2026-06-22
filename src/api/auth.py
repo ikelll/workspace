@@ -22,6 +22,7 @@ class AuthService(QObject):
     auth_error = Signal(str)
     login_success = Signal(str, str, str)
     login_error = Signal(str) 
+    mfa_required = Signal(dict)
     logged_out = Signal()
 
     def __init__(self, client: ApiClient, parent: QObject | None = None) -> None:
@@ -82,6 +83,18 @@ class AuthService(QObject):
             on_error=self._on_login_fail,
         )
     
+    def verify_mfa(self, mfa_token: str, code: str, remember_device: bool = False) -> None:
+        self._client.post(
+            ep.AUTH_MFA,
+            body={
+                "mfa_token": mfa_token,
+                "code": code,
+                "remember_device": bool(remember_device),
+            },
+            on_success=self._on_login_ok,
+            on_error=self._on_login_fail,
+        )
+
     def login_negotiate(self, auth_id: str, spn: str = "") -> None:
         try:
             from src.auth.negotiate import NegotiateClient
@@ -247,7 +260,19 @@ class AuthService(QObject):
             return
         self._negotiate_client = None
 
-        result = data.get("result", "")
+        result = str(data.get("result", ""))
+
+        if result == "mfa_required":
+            payload = self._normalize_mfa_payload(data)
+            if not str(payload.get("mfa_token", "") or "").strip():
+                log.warning("MFA challenge response has no mfa_token: keys=%s", sorted(payload.keys()))
+                self.login_error.emit(
+                    QCoreApplication.translate("AuthService", "Server did not return MFA challenge token")
+                )
+                return
+            log.info("MFA challenge required")
+            self.mfa_required.emit(payload)
+            return
 
         if result != "ok":
             raw_error = data.get(
@@ -276,6 +301,19 @@ class AuthService(QObject):
         last_login = str(data.get("last_login", "") or "")
         log.info("Login successful, token=<REDACTED> (len=%d)", len(token))
         self.login_success.emit(token, self._username, last_login)
+
+
+    def _normalize_mfa_payload(self, data: dict) -> dict:
+        payload = dict(data)
+        for key in ("mfa", "challenge", "data"):
+            nested = data.get(key)
+            if isinstance(nested, dict):
+                payload.update(nested)
+        if not str(payload.get("mfa_token", "") or "").strip():
+            token = payload.get("mfaToken") or payload.get("challenge_token") or payload.get("challengeToken")
+            if token:
+                payload["mfa_token"] = token
+        return payload
 
     def _on_login_fail(self, msg: str, code: int) -> None:
         raw_msg = msg

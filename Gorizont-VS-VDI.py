@@ -140,10 +140,12 @@ class AppWidget(QWidget):
         self.login_ctrl.authenticators_requested.connect(self._on_fetch_authenticators)
         self.login_ctrl.login_requested.connect(self._on_login_requested)
         self.login_ctrl.negotiate_requested.connect(self._on_negotiate_requested)
+        self.login_ctrl.mfa_verify_requested.connect(self._on_mfa_verify_requested)
         self._auth.authenticators_ready.connect(self.login_ctrl.set_authenticators)
         self._auth.auth_error.connect(self.login_ctrl.on_auth_fetch_failed)
         self._auth.login_success.connect(self._on_login_success)
         self._auth.login_error.connect(self._on_login_failed)
+        self._auth.mfa_required.connect(self._on_mfa_required)
         self._auth.logged_out.connect(self._on_logged_out)
         self._services_api.services_ready.connect(self._on_services_ready)
         self._services_api.services_error.connect(self._on_services_error)
@@ -459,6 +461,24 @@ class AppWidget(QWidget):
         self.show_loading(self.tr("Signing in…"))
         self._initial_workspace_load = False
         self._auth.login_negotiate(auth_id, spn)
+
+    def _on_mfa_required(self, payload: dict) -> None:
+        log.info("MFA required by broker (keys=%s)", sorted(payload.keys()))
+        self._initial_workspace_load = False
+        self._spinner.stop()
+        self.ui.stackedWidget.setCurrentWidget(self.ui.pageLogin)
+
+        def _show() -> None:
+            if not self.login_ctrl.show_mfa_page(payload):
+                log.warning("Could not show MFA page; payload keys=%s", sorted(payload.keys()))
+
+        QTimer.singleShot(0, _show)
+
+    def _on_mfa_verify_requested(self, mfa_token: str, code: str, remember_device: bool) -> None:
+        log.info("Verifying MFA challenge")
+        self.show_loading(self.tr("Verifying code…"))
+        self._initial_workspace_load = False
+        self._auth.verify_mfa(mfa_token, code, remember_device)
 
     def _on_login_success(self, token: str, username: str, last_login: str = "") -> None:
         log.info("Login successful, fetching services...")

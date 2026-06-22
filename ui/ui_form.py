@@ -128,41 +128,41 @@ class Ui_Widget(object):
         self.pageCreds.setStyleSheet(u"")
         self.gridLayout_5 = QGridLayout(self.pageCreds)
         self.gridLayout_5.setObjectName(u"gridLayout_5")
+        self.lblCredsServer = QLabel(self.pageCreds)
+        self.lblCredsServer.setObjectName(u"lblCredsServer")
+        font = QFont()
+        self.lblCredsServer.setFont(font)
+
+        self.gridLayout_5.addWidget(self.lblCredsServer, 4, 1, 1, 1)
+
+        self.verticalSpacer_20 = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayout_5.addItem(self.verticalSpacer_20, 3, 1, 1, 1)
+
         self.btnCredsBack = QPushButton(self.pageCreds)
         self.btnCredsBack.setObjectName(u"btnCredsBack")
         self.btnCredsBack.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         self.gridLayout_5.addWidget(self.btnCredsBack, 13, 1, 1, 1)
 
-        self.leCredsPass = QLineEdit(self.pageCreds)
-        self.leCredsPass.setObjectName(u"leCredsPass")
-        self.leCredsPass.setEchoMode(QLineEdit.EchoMode.Password)
-
-        self.gridLayout_5.addWidget(self.leCredsPass, 7, 1, 1, 1)
-
         self.verticalSpacer_8 = QSpacerItem(20, 5, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self.gridLayout_5.addItem(self.verticalSpacer_8, 10, 1, 1, 1)
+
+        self.verticalSpacer_23 = QSpacerItem(20, 105, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayout_5.addItem(self.verticalSpacer_23, 1, 1, 1, 1)
+
+        self.lblCredsLogo = QLabel(self.pageCreds)
+        self.lblCredsLogo.setObjectName(u"lblCredsLogo")
+
+        self.gridLayout_5.addWidget(self.lblCredsLogo, 2, 1, 1, 1)
 
         self.btnCredsLogin = QPushButton(self.pageCreds)
         self.btnCredsLogin.setObjectName(u"btnCredsLogin")
         self.btnCredsLogin.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         self.gridLayout_5.addWidget(self.btnCredsLogin, 9, 1, 1, 1)
-
-        self.lblCredsErrorBanner = QLabel(self.pageCreds)
-        self.lblCredsErrorBanner.setObjectName(u"lblCredsErrorBanner")
-        self.lblCredsErrorBanner.setProperty(u"hidden", True)
-
-        self.gridLayout_5.addWidget(self.lblCredsErrorBanner, 11, 1, 1, 1)
-
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.gridLayout_5.addItem(self.horizontalSpacer_10, 5, 0, 1, 1)
-
-        self.verticalSpacer_5 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-
-        self.gridLayout_5.addItem(self.verticalSpacer_5, 12, 1, 1, 1)
 
         self.horizontalSpacer_9 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
@@ -172,14 +172,20 @@ class Ui_Widget(object):
 
         self.gridLayout_5.addItem(self.verticalSpacer_13, 8, 1, 1, 1)
 
+        self.lblCredsErrorBanner = QLabel(self.pageCreds)
+        self.lblCredsErrorBanner.setObjectName(u"lblCredsErrorBanner")
+        self.lblCredsErrorBanner.setProperty(u"hidden", True)
+
+        self.gridLayout_5.addWidget(self.lblCredsErrorBanner, 11, 1, 1, 1)
+
         self.verticalSpacer_4 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.gridLayout_5.addItem(self.verticalSpacer_4, 0, 1, 1, 1)
 
-        self.lblCredsLogo = QLabel(self.pageCreds)
-        self.lblCredsLogo.setObjectName(u"lblCredsLogo")
+        self.leCredsUser = QLineEdit(self.pageCreds)
+        self.leCredsUser.setObjectName(u"leCredsUser")
 
-        self.gridLayout_5.addWidget(self.lblCredsLogo, 2, 1, 1, 1)
+        self.gridLayout_5.addWidget(self.leCredsUser, 6, 1, 1, 1)
 
         self.cmbAuthenticator = UnifiedComboBox(self.pageCreds)
         self.cmbAuthenticator.setObjectName(u"cmbAuthenticator")
@@ -188,25 +194,19 @@ class Ui_Widget(object):
 
         self.gridLayout_5.addWidget(self.cmbAuthenticator, 5, 1, 1, 1)
 
-        self.lblCredsServer = QLabel(self.pageCreds)
-        self.lblCredsServer.setObjectName(u"lblCredsServer")
-        font = QFont()
-        self.lblCredsServer.setFont(font)
+        self.leCredsPass = QLineEdit(self.pageCreds)
+        self.leCredsPass.setObjectName(u"leCredsPass")
+        self.leCredsPass.setEchoMode(QLineEdit.EchoMode.Password)
 
-        self.gridLayout_5.addWidget(self.lblCredsServer, 4, 1, 1, 1)
+        self.gridLayout_5.addWidget(self.leCredsPass, 7, 1, 1, 1)
 
-        self.leCredsUser = QLineEdit(self.pageCreds)
-        self.leCredsUser.setObjectName(u"leCredsUser")
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout_5.addWidget(self.leCredsUser, 6, 1, 1, 1)
+        self.gridLayout_5.addItem(self.horizontalSpacer_10, 5, 0, 1, 1)
 
-        self.verticalSpacer_20 = QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.verticalSpacer_5 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.gridLayout_5.addItem(self.verticalSpacer_20, 3, 1, 1, 1)
-
-        self.verticalSpacer_23 = QSpacerItem(20, 105, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-
-        self.gridLayout_5.addItem(self.verticalSpacer_23, 1, 1, 1, 1)
+        self.gridLayout_5.addItem(self.verticalSpacer_5, 12, 1, 1, 1)
 
         self.stackedWidgetLogin.addWidget(self.pageCreds)
         self.pagePassword = QWidget()
@@ -301,6 +301,174 @@ class Ui_Widget(object):
         self.gridLayout_6.addItem(self.verticalSpacer_24, 1, 1, 1, 1)
 
         self.stackedWidgetLogin.addWidget(self.pagePassword)
+        self.pageMfaVerify = QWidget()
+        self.pageMfaVerify.setObjectName(u"pageMfaVerify")
+        self.gridLayout_9 = QGridLayout(self.pageMfaVerify)
+        self.gridLayout_9.setObjectName(u"gridLayout_9")
+        self.gridLayoutMfaVerify = QGridLayout()
+        self.gridLayoutMfaVerify.setObjectName(u"gridLayoutMfaVerify")
+        self.verticalSpacer_31 = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_31, 13, 1, 1, 1)
+
+        self.verticalSpacer_30 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_30, 0, 1, 1, 1)
+
+        self.horizontalSpacer_13 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayoutMfaVerify.addItem(self.horizontalSpacer_13, 8, 0, 1, 1)
+
+        self.btnMfaVerifyBack = QPushButton(self.pageMfaVerify)
+        self.btnMfaVerifyBack.setObjectName(u"btnMfaVerifyBack")
+        self.btnMfaVerifyBack.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        self.gridLayoutMfaVerify.addWidget(self.btnMfaVerifyBack, 14, 1, 1, 1)
+
+        self.verticalSpacer_34 = QSpacerItem(20, 5, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_34, 7, 1, 1, 1)
+
+        self.lblMfaErrorBanner = QLabel(self.pageMfaVerify)
+        self.lblMfaErrorBanner.setObjectName(u"lblMfaErrorBanner")
+        self.lblMfaErrorBanner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lblMfaErrorBanner.setWordWrap(True)
+
+        self.gridLayoutMfaVerify.addWidget(self.lblMfaErrorBanner, 11, 1, 1, 1)
+
+        self.lblMfaVerifyLogo = QLabel(self.pageMfaVerify)
+        self.lblMfaVerifyLogo.setObjectName(u"lblMfaVerifyLogo")
+        self.lblMfaVerifyLogo.setMinimumSize(QSize(0, 40))
+
+        self.gridLayoutMfaVerify.addWidget(self.lblMfaVerifyLogo, 2, 1, 1, 1)
+
+        self.lblMfaVerifyTitle = QLabel(self.pageMfaVerify)
+        self.lblMfaVerifyTitle.setObjectName(u"lblMfaVerifyTitle")
+        self.lblMfaVerifyTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayoutMfaVerify.addWidget(self.lblMfaVerifyTitle, 4, 1, 1, 1)
+
+        self.verticalSpacer_39 = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_39, 15, 1, 1, 1)
+
+        self.btnMfaVerify = QPushButton(self.pageMfaVerify)
+        self.btnMfaVerify.setObjectName(u"btnMfaVerify")
+        self.btnMfaVerify.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        self.gridLayoutMfaVerify.addWidget(self.btnMfaVerify, 9, 1, 1, 1)
+
+        self.verticalSpacer_32 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_32, 12, 1, 1, 1)
+
+        self.horizontalSpacer_25 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayoutMfaVerify.addItem(self.horizontalSpacer_25, 8, 2, 1, 1)
+
+        self.leMfaCode = QLineEdit(self.pageMfaVerify)
+        self.leMfaCode.setObjectName(u"leMfaCode")
+        self.leMfaCode.setMaxLength(16)
+        self.leMfaCode.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayoutMfaVerify.addWidget(self.leMfaCode, 8, 1, 1, 1)
+
+        self.verticalSpacer_36 = QSpacerItem(20, 5, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_36, 3, 1, 1, 1)
+
+        self.verticalSpacer_35 = QSpacerItem(20, 5, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_35, 5, 1, 1, 1)
+
+        self.lblMfaVerifyDescription = QLabel(self.pageMfaVerify)
+        self.lblMfaVerifyDescription.setObjectName(u"lblMfaVerifyDescription")
+        self.lblMfaVerifyDescription.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lblMfaVerifyDescription.setWordWrap(True)
+
+        self.gridLayoutMfaVerify.addWidget(self.lblMfaVerifyDescription, 6, 1, 1, 1)
+
+        self.verticalSpacer_38 = QSpacerItem(20, 5, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_38, 10, 1, 1, 1)
+
+        self.verticalSpacer_37 = QSpacerItem(20, 120, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaVerify.addItem(self.verticalSpacer_37, 1, 1, 1, 1)
+
+
+        self.gridLayout_9.addLayout(self.gridLayoutMfaVerify, 0, 0, 1, 1)
+
+        self.stackedWidgetLogin.addWidget(self.pageMfaVerify)
+        self.pageMfaSetup = QWidget()
+        self.pageMfaSetup.setObjectName(u"pageMfaSetup")
+        self.gridLayout_10 = QGridLayout(self.pageMfaSetup)
+        self.gridLayout_10.setObjectName(u"gridLayout_10")
+        self.gridLayoutMfaSetup = QGridLayout()
+        self.gridLayoutMfaSetup.setObjectName(u"gridLayoutMfaSetup")
+        self.btnMfaSetupContinue = QPushButton(self.pageMfaSetup)
+        self.btnMfaSetupContinue.setObjectName(u"btnMfaSetupContinue")
+        self.btnMfaSetupContinue.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        self.gridLayoutMfaSetup.addWidget(self.btnMfaSetupContinue, 8, 0, 1, 1)
+
+        self.lblMfaSetupDescription = QLabel(self.pageMfaSetup)
+        self.lblMfaSetupDescription.setObjectName(u"lblMfaSetupDescription")
+        self.lblMfaSetupDescription.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lblMfaSetupDescription.setWordWrap(True)
+
+        self.gridLayoutMfaSetup.addWidget(self.lblMfaSetupDescription, 5, 0, 1, 1)
+
+        self.btnMfaSetupBack = QPushButton(self.pageMfaSetup)
+        self.btnMfaSetupBack.setObjectName(u"btnMfaSetupBack")
+        self.btnMfaSetupBack.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        self.gridLayoutMfaSetup.addWidget(self.btnMfaSetupBack, 10, 0, 1, 1)
+
+        self.verticalSpacer_28 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayoutMfaSetup.addItem(self.verticalSpacer_28, 2, 0, 1, 1)
+
+        self.verticalSpacer_33 = QSpacerItem(20, 5, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.gridLayoutMfaSetup.addItem(self.verticalSpacer_33, 11, 0, 1, 1)
+
+        self.lblMfaSetupMessage = QLabel(self.pageMfaSetup)
+        self.lblMfaSetupMessage.setObjectName(u"lblMfaSetupMessage")
+        self.lblMfaSetupMessage.setWordWrap(True)
+
+        self.gridLayoutMfaSetup.addWidget(self.lblMfaSetupMessage, 7, 0, 1, 1)
+
+        self.lblMfaSetupTitle = QLabel(self.pageMfaSetup)
+        self.lblMfaSetupTitle.setObjectName(u"lblMfaSetupTitle")
+        self.lblMfaSetupTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lblMfaSetupTitle.setWordWrap(False)
+
+        self.gridLayoutMfaSetup.addWidget(self.lblMfaSetupTitle, 4, 0, 1, 1)
+
+        self.verticalSpacer_29 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayoutMfaSetup.addItem(self.verticalSpacer_29, 9, 0, 1, 1)
+
+        self.lblMfaSetupLogo = QLabel(self.pageMfaSetup)
+        self.lblMfaSetupLogo.setObjectName(u"lblMfaSetupLogo")
+        self.lblMfaSetupLogo.setMinimumSize(QSize(0, 40))
+
+        self.gridLayoutMfaSetup.addWidget(self.lblMfaSetupLogo, 3, 0, 1, 1)
+
+        self.lblMfaSetupQrCode = QLabel(self.pageMfaSetup)
+        self.lblMfaSetupQrCode.setObjectName(u"lblMfaSetupQrCode")
+        self.lblMfaSetupQrCode.setMinimumSize(QSize(220, 220))
+        self.lblMfaSetupQrCode.setMaximumSize(QSize(220, 220))
+        self.lblMfaSetupQrCode.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lblMfaSetupQrCode.setWordWrap(False)
+
+        self.gridLayoutMfaSetup.addWidget(self.lblMfaSetupQrCode, 6, 0, 1, 1)
+
+
+        self.gridLayout_10.addLayout(self.gridLayoutMfaSetup, 0, 0, 1, 1)
+
+        self.stackedWidgetLogin.addWidget(self.pageMfaSetup)
         self.pageProfiles = QWidget()
         self.pageProfiles.setObjectName(u"pageProfiles")
         self.gridLayout_7 = QGridLayout(self.pageProfiles)
@@ -311,7 +479,7 @@ class Ui_Widget(object):
         self.scrollProfiles.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 74, 50))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 420, 425))
         self.verticalLayout_5 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_5.setObjectName(u"verticalLayout_5")
         self.wProfilesListHost = QWidget(self.scrollAreaWidgetContents)
@@ -1052,8 +1220,8 @@ class Ui_Widget(object):
 
         self.retranslateUi(Widget)
 
-        self.stackedWidget.setCurrentIndex(2)
-        self.stackedWidgetLogin.setCurrentIndex(2)
+        self.stackedWidget.setCurrentIndex(0)
+        self.stackedWidgetLogin.setCurrentIndex(3)
         self.stackedWidgetMainContent.setCurrentIndex(3)
 
 
@@ -1068,16 +1236,16 @@ class Ui_Widget(object):
         self.leServerUrl.setPlaceholderText(QCoreApplication.translate("Widget", u"Enter the server url or token", None))
         self.lblServerLogo.setText("")
         self.btnBackToProfiles.setText(QCoreApplication.translate("Widget", u"\u2190 Back to profiles", None))
+        self.lblCredsServer.setText("")
         self.btnCredsBack.setText(QCoreApplication.translate("Widget", u"\u2190 Back", None))
-        self.leCredsPass.setText("")
-        self.leCredsPass.setPlaceholderText(QCoreApplication.translate("Widget", u"Password", None))
+        self.lblCredsLogo.setText("")
         self.btnCredsLogin.setText(QCoreApplication.translate("Widget", u"Login", None))
         self.lblCredsErrorBanner.setText("")
-        self.lblCredsLogo.setText("")
-        self.cmbAuthenticator.setProperty(u"comboVariant", QCoreApplication.translate("Widget", u"primary", None))
-        self.lblCredsServer.setText("")
         self.leCredsUser.setText("")
         self.leCredsUser.setPlaceholderText(QCoreApplication.translate("Widget", u"Username", None))
+        self.cmbAuthenticator.setProperty(u"comboVariant", QCoreApplication.translate("Widget", u"primary", None))
+        self.leCredsPass.setText("")
+        self.leCredsPass.setPlaceholderText(QCoreApplication.translate("Widget", u"Password", None))
         self.btnDeleteProfile.setText(QCoreApplication.translate("Widget", u"Delete a profile", None))
         self.lblPasswordLogo.setText("")
         self.leProfilePass.setText("")
@@ -1085,6 +1253,20 @@ class Ui_Widget(object):
         self.btnSwitchAccount.setText(QCoreApplication.translate("Widget", u"Another account", None))
         self.btnProfileLogin.setText(QCoreApplication.translate("Widget", u"Login", None))
         self.lblPwErrorBanner.setText("")
+        self.btnMfaVerifyBack.setText(QCoreApplication.translate("Widget", u"\u2190 Back", None))
+        self.lblMfaErrorBanner.setText("")
+        self.lblMfaVerifyLogo.setText("")
+        self.lblMfaVerifyTitle.setText(QCoreApplication.translate("Widget", u"Authentication code", None))
+        self.btnMfaVerify.setText(QCoreApplication.translate("Widget", u"Continue", None))
+        self.leMfaCode.setPlaceholderText(QCoreApplication.translate("Widget", u"Authentication code", None))
+        self.lblMfaVerifyDescription.setText(QCoreApplication.translate("Widget", u"Enter the code from your authenticator app", None))
+        self.btnMfaSetupContinue.setText(QCoreApplication.translate("Widget", u"I have scanned the QR code", None))
+        self.lblMfaSetupDescription.setText(QCoreApplication.translate("Widget", u"Scan this QR code with your authenticator app", None))
+        self.btnMfaSetupBack.setText(QCoreApplication.translate("Widget", u"\u2190 Back", None))
+        self.lblMfaSetupMessage.setText("")
+        self.lblMfaSetupTitle.setText(QCoreApplication.translate("Widget", u"Set up two-factor authentication", None))
+        self.lblMfaSetupLogo.setText("")
+        self.lblMfaSetupQrCode.setText("")
         self.lblProfilesTitle.setText(QCoreApplication.translate("Widget", u"Select a profile", None))
         self.btnAddProfile.setText(QCoreApplication.translate("Widget", u"+ Add connection", None))
         self.btnLoginLanguage.setText("")

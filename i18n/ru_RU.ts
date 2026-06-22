@@ -58,7 +58,7 @@
 <context>
     <name>AppWidget</name>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="283"/>
+        <location filename="../Gorizont-VS-VDI.py" line="285"/>
         <source>Switch language</source>
         <translation>Сменить язык</translation>
     </message>
@@ -67,69 +67,74 @@
         <translation type="vanished">Переключить тему</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="299"/>
+        <location filename="../Gorizont-VS-VDI.py" line="301"/>
         <source>Preparing…</source>
         <translation>Подготовка…</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="301"/>
+        <location filename="../Gorizont-VS-VDI.py" line="303"/>
         <source>Back to login</source>
         <translation>Назад ко входу</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="407"/>
+        <location filename="../Gorizont-VS-VDI.py" line="409"/>
         <source>Loading…</source>
         <translation>Загрузка…</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="448"/>
-        <location filename="../Gorizont-VS-VDI.py" line="458"/>
+        <location filename="../Gorizont-VS-VDI.py" line="450"/>
+        <location filename="../Gorizont-VS-VDI.py" line="460"/>
         <source>Signing in…</source>
         <translation>Выполняется вход…</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="472"/>
+        <location filename="../Gorizont-VS-VDI.py" line="480"/>
+        <source>Verifying code…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Gorizont-VS-VDI.py" line="494"/>
         <source>Loading services…</source>
         <translation>Загрузка сервисов…</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="490"/>
+        <location filename="../Gorizont-VS-VDI.py" line="512"/>
         <source>Loading images…</source>
         <translation>Загрузка изображений…</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="501"/>
         <location filename="../Gorizont-VS-VDI.py" line="523"/>
+        <location filename="../Gorizont-VS-VDI.py" line="545"/>
         <source>Loading error</source>
         <translation>Ошибка загрузки</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="527"/>
+        <location filename="../Gorizont-VS-VDI.py" line="549"/>
         <source>Warning</source>
         <translation>Предупреждение</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="635"/>
+        <location filename="../Gorizont-VS-VDI.py" line="657"/>
         <source>selected service</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="640"/>
+        <location filename="../Gorizont-VS-VDI.py" line="662"/>
         <source>Service message</source>
         <translation>Сервисное сообщение</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="642"/>
+        <location filename="../Gorizont-VS-VDI.py" line="664"/>
         <source>Continue</source>
         <translation>Продолжить</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="683"/>
+        <location filename="../Gorizont-VS-VDI.py" line="705"/>
         <source>Connecting…</source>
         <translation>Подключение…</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="708"/>
+        <location filename="../Gorizont-VS-VDI.py" line="730"/>
         <source>Service is not ready</source>
         <translation>Сервис не готов</translation>
     </message>
@@ -138,195 +143,195 @@
         <translation type="vanished">Повторить попытку подключения?</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="710"/>
+        <location filename="../Gorizont-VS-VDI.py" line="732"/>
         <source>Retry</source>
         <translation>Повторить</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="643"/>
-        <location filename="../Gorizont-VS-VDI.py" line="711"/>
+        <location filename="../Gorizont-VS-VDI.py" line="665"/>
+        <location filename="../Gorizont-VS-VDI.py" line="733"/>
         <source>Cancel</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="668"/>
+        <location filename="../Gorizont-VS-VDI.py" line="690"/>
         <source>Power on command sent</source>
         <translation>Отправлена команда включения</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="669"/>
+        <location filename="../Gorizont-VS-VDI.py" line="691"/>
         <source>Power off command sent</source>
         <translation>Отправлена команда выключения</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="670"/>
+        <location filename="../Gorizont-VS-VDI.py" line="692"/>
         <source>Reset command sent</source>
         <translation>Отправлена команда перезагрузки</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="672"/>
+        <location filename="../Gorizont-VS-VDI.py" line="694"/>
         <source>Action command sent</source>
         <translation>Отправлена команда действия</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="676"/>
+        <location filename="../Gorizont-VS-VDI.py" line="698"/>
         <source>Power on completed</source>
         <translation>Включение завершено</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="677"/>
+        <location filename="../Gorizont-VS-VDI.py" line="699"/>
         <source>Power off completed</source>
         <translation>Выключение завершено</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="678"/>
+        <location filename="../Gorizont-VS-VDI.py" line="700"/>
         <source>Reset completed</source>
         <translation>Перезагрузка завершена</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="680"/>
+        <location filename="../Gorizont-VS-VDI.py" line="702"/>
         <source>Action completed</source>
         <translation>Действие завершено</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="731"/>
+        <location filename="../Gorizont-VS-VDI.py" line="753"/>
         <source>Connection error</source>
         <translation>Ошибка подключения</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="593"/>
+        <location filename="../Gorizont-VS-VDI.py" line="615"/>
         <source>No transports available for this service.</source>
         <translation>Нет доступных транспортов для данного сервиса.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="600"/>
-        <location filename="../Gorizont-VS-VDI.py" line="654"/>
+        <location filename="../Gorizont-VS-VDI.py" line="622"/>
+        <location filename="../Gorizont-VS-VDI.py" line="676"/>
         <location filename="../src/api/error_messages.py" line="62"/>
         <source>Session expired. Please sign in again.</source>
         <translation>Сессия истекла. Выполните повторный вход.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="499"/>
+        <location filename="../Gorizont-VS-VDI.py" line="521"/>
         <source>Failed to load workspace content. Please sign in again.</source>
         <translation>Не удалось загрузить контент рабочего пространства. Повторите вход еще раз.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="293"/>
+        <location filename="../Gorizont-VS-VDI.py" line="295"/>
         <source>Switch to light theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="294"/>
+        <location filename="../Gorizont-VS-VDI.py" line="296"/>
         <source>Switch to dark theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="379"/>
+        <location filename="../Gorizont-VS-VDI.py" line="381"/>
         <source>Profile</source>
         <translation>Профиль</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="380"/>
+        <location filename="../Gorizont-VS-VDI.py" line="382"/>
         <source>Quick profile settings</source>
         <translation>Быстрые настройки профиля</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="381"/>
+        <location filename="../Gorizont-VS-VDI.py" line="383"/>
         <source>Interface language</source>
         <translation>Язык интерфейса</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="382"/>
+        <location filename="../Gorizont-VS-VDI.py" line="384"/>
         <source>Color theme</source>
         <translation>Тема оформления</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="383"/>
+        <location filename="../Gorizont-VS-VDI.py" line="385"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="384"/>
+        <location filename="../Gorizont-VS-VDI.py" line="386"/>
         <source>Logout</source>
         <translation>Выход</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="385"/>
+        <location filename="../Gorizont-VS-VDI.py" line="387"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="386"/>
+        <location filename="../Gorizont-VS-VDI.py" line="388"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="170"/>
-        <location filename="../Gorizont-VS-VDI.py" line="219"/>
+        <location filename="../Gorizont-VS-VDI.py" line="172"/>
+        <location filename="../Gorizont-VS-VDI.py" line="221"/>
         <source>Refresh services</source>
         <translation>Обновить сервисы</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="483"/>
+        <location filename="../Gorizont-VS-VDI.py" line="505"/>
         <source>Services refreshed</source>
         <translation>Сервисы обновлены</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="800"/>
+        <location filename="../Gorizont-VS-VDI.py" line="822"/>
         <source>Previous login: {date}</source>
         <translation>Последний вход:  {date}</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="820"/>
-        <location filename="../Gorizont-VS-VDI.py" line="833"/>
+        <location filename="../Gorizont-VS-VDI.py" line="842"/>
+        <location filename="../Gorizont-VS-VDI.py" line="855"/>
         <source>The machine is powered off. Power on is being started.</source>
         <translation>Машина выключена. Запускается включение.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="821"/>
+        <location filename="../Gorizont-VS-VDI.py" line="843"/>
         <source>The machine is powering on. Connection will be available soon.</source>
         <translation>Машина включается. Подключение скоро будет доступно.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="822"/>
+        <location filename="../Gorizont-VS-VDI.py" line="844"/>
         <source>The machine is rebooting. Connection will be available after reboot.</source>
         <translation>Машина перезагружается. Подключение будет доступно после перезагрузки.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="823"/>
+        <location filename="../Gorizont-VS-VDI.py" line="845"/>
         <source>The machine is being prepared. Connection will be available soon.</source>
         <translation>Машина подготавливается. Подключение скоро будет доступно.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="834"/>
+        <location filename="../Gorizont-VS-VDI.py" line="856"/>
         <source>The machine is powering on. Please try again shortly.</source>
         <translation>Машина включается. Попробуйте подключиться немного позже.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="835"/>
+        <location filename="../Gorizont-VS-VDI.py" line="857"/>
         <source>The machine is rebooting. Please try again after reboot finishes.</source>
         <translation>Машина перезагружается. Попробуйте после завершения перезагрузки.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="836"/>
+        <location filename="../Gorizont-VS-VDI.py" line="858"/>
         <source>The machine is being prepared. Please try again shortly.</source>
         <translation>Машина подготавливается. Попробуйте подключиться немного позже.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="824"/>
-        <location filename="../Gorizont-VS-VDI.py" line="837"/>
+        <location filename="../Gorizont-VS-VDI.py" line="846"/>
+        <location filename="../Gorizont-VS-VDI.py" line="859"/>
         <source>The machine is powering off. Please wait until the operation finishes.</source>
         <translation>Машина выключается. Дождитесь завершения операции.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="825"/>
-        <location filename="../Gorizont-VS-VDI.py" line="838"/>
+        <location filename="../Gorizont-VS-VDI.py" line="847"/>
+        <location filename="../Gorizont-VS-VDI.py" line="860"/>
         <source>The service is in maintenance mode. Connection is temporarily unavailable.</source>
         <translation>Сервис находится в режиме обслуживания. Подключение временно недоступно.</translation>
     </message>
     <message>
-        <location filename="../Gorizont-VS-VDI.py" line="826"/>
-        <location filename="../Gorizont-VS-VDI.py" line="839"/>
+        <location filename="../Gorizont-VS-VDI.py" line="848"/>
+        <location filename="../Gorizont-VS-VDI.py" line="861"/>
         <source>The service is unavailable. Please try again later.</source>
         <translation>Сервис недоступен. Попробуйте позже.</translation>
     </message>
@@ -334,25 +339,30 @@
 <context>
     <name>AuthService</name>
     <message>
-        <location filename="../src/api/auth.py" line="233"/>
+        <location filename="../src/api/auth.py" line="246"/>
         <source>Server returned no authenticators</source>
         <translation>Сервер не вернул ни одного аутентификатора</translation>
     </message>
     <message>
-        <location filename="../src/api/auth.py" line="246"/>
+        <location filename="../src/api/auth.py" line="259"/>
         <location filename="../src/api/error_messages.py" line="20"/>
         <source>Unexpected server response</source>
         <translation>Неожиданный ответ сервера</translation>
     </message>
     <message>
-        <location filename="../src/api/auth.py" line="255"/>
-        <location filename="../src/api/auth.py" line="283"/>
+        <location filename="../src/api/auth.py" line="270"/>
+        <source>Server did not return MFA challenge token</source>
+        <translation>Сервер не вернул токен MFA-проверки</translation>
+    </message>
+    <message>
+        <location filename="../src/api/auth.py" line="280"/>
+        <location filename="../src/api/auth.py" line="321"/>
         <location filename="../src/api/error_messages.py" line="25"/>
         <source>Invalid username or password</source>
         <translation>Неверный логин или пароль</translation>
     </message>
     <message>
-        <location filename="../src/api/auth.py" line="265"/>
+        <location filename="../src/api/auth.py" line="290"/>
         <source>Server did not return an authorization token</source>
         <translation>Сервер не вернул токен авторизации</translation>
     </message>
@@ -392,109 +402,195 @@
 <context>
     <name>LoginController</name>
     <message>
-        <location filename="../src/login_controller.py" line="240"/>
-        <location filename="../src/login_controller.py" line="524"/>
-        <location filename="../src/login_controller.py" line="530"/>
+        <location filename="../src/login_controller.py" line="320"/>
+        <location filename="../src/login_controller.py" line="852"/>
+        <location filename="../src/login_controller.py" line="858"/>
+        <location filename="../src/login_controller.py" line="972"/>
         <source>Continue</source>
         <translation>Продолжить</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="257"/>
-        <location filename="../src/login_controller.py" line="278"/>
-        <location filename="../src/login_controller.py" line="481"/>
-        <location filename="../src/login_controller.py" line="590"/>
+        <location filename="../src/login_controller.py" line="337"/>
+        <location filename="../src/login_controller.py" line="358"/>
+        <location filename="../src/login_controller.py" line="522"/>
+        <location filename="../src/login_controller.py" line="747"/>
+        <location filename="../src/login_controller.py" line="809"/>
+        <location filename="../src/login_controller.py" line="929"/>
         <source>Login</source>
         <translation>Войти</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="348"/>
+        <location filename="../src/login_controller.py" line="379"/>
+        <source>MFA is required, but MFA verification page is missing in UI</source>
+        <translation>Требуется MFA, но в интерфейсе нет страницы ввода кода</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="386"/>
+        <source>Server did not return MFA challenge token</source>
+        <translation>Сервер не вернул токен MFA-проверки</translation>
+    </message>
+    <message>
+        <source>Two-factor authentication</source>
+        <translation type="vanished">Двухфакторная аутентификация</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="470"/>
+        <source>Enter the code from your authenticator app</source>
+        <translation>Введите код из приложения-аутентификатора</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="484"/>
+        <source>Remember this device</source>
+        <translation>Запомнить это устройство</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="486"/>
+        <source>Remember this device for {duration}</source>
+        <translation>Запомнить это устройство на {duration}</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="627"/>
         <source>The server url/token is not specified</source>
         <translation>url сервера/токен не указан</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="367"/>
+        <location filename="../src/login_controller.py" line="646"/>
         <source>Connection...</source>
         <translation>Подключение...</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="385"/>
+        <location filename="../src/login_controller.py" line="664"/>
         <source>Select an authenticator</source>
         <translation>Выберите аутентификатор</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="390"/>
-        <location filename="../src/login_controller.py" line="428"/>
+        <location filename="../src/login_controller.py" line="669"/>
+        <location filename="../src/login_controller.py" line="707"/>
         <source>Signing in...</source>
         <translation>Вход в...</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="399"/>
+        <location filename="../src/login_controller.py" line="678"/>
         <source>Enter the username</source>
         <translation>Введите имя пользователя</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="402"/>
-        <location filename="../src/login_controller.py" line="435"/>
+        <location filename="../src/login_controller.py" line="681"/>
+        <location filename="../src/login_controller.py" line="714"/>
         <source>Enter password</source>
         <translation>Введите пароль</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="408"/>
+        <location filename="../src/login_controller.py" line="687"/>
         <source>Enter username and password, or leave both fields empty for automatic login</source>
         <translation>Введите имя пользователя и пароль, или оставьте оба поля пустыми для sso.</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="415"/>
-        <location filename="../src/login_controller.py" line="439"/>
+        <location filename="../src/login_controller.py" line="694"/>
+        <location filename="../src/login_controller.py" line="718"/>
         <source>Log in...</source>
         <translation>Вход...</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="475"/>
-        <location filename="../src/login_controller.py" line="476"/>
+        <location filename="../src/login_controller.py" line="732"/>
+        <source>Enter the authentication code</source>
+        <translation>Введите код аутентификации</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="738"/>
+        <source>Verifying...</source>
+        <translation>Проверка...</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="803"/>
+        <location filename="../src/login_controller.py" line="804"/>
         <source>Leave empty for automatic login</source>
         <translation>Оставьте поле пустым для SSO</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="478"/>
+        <location filename="../src/login_controller.py" line="806"/>
         <source>Username</source>
         <translation>Имя пользователя</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="479"/>
+        <location filename="../src/login_controller.py" line="807"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="491"/>
+        <location filename="../src/login_controller.py" line="819"/>
         <source>Delete profile</source>
         <translation>Удаление профиля</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="492"/>
+        <location filename="../src/login_controller.py" line="820"/>
         <source>Delete profile &quot;{display_label}&quot;?</source>
         <translation>Удалить профиль &quot;{display_label}&quot;?</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="495"/>
+        <location filename="../src/login_controller.py" line="823"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="496"/>
+        <location filename="../src/login_controller.py" line="824"/>
         <source>Cancel</source>
         <translation>Отменить</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="532"/>
+        <location filename="../src/login_controller.py" line="860"/>
         <source>Connection error</source>
         <translation>Ошибка подключения</translation>
     </message>
     <message>
-        <location filename="../src/login_controller.py" line="587"/>
-        <location filename="../src/login_controller.py" line="592"/>
+        <location filename="../src/login_controller.py" line="926"/>
+        <location filename="../src/login_controller.py" line="931"/>
         <source>Login failed</source>
         <translation>Ошибка входа</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="525"/>
+        <location filename="../src/login_controller.py" line="532"/>
+        <location filename="../src/login_controller.py" line="941"/>
+        <source>MFA failed</source>
+        <translation>Ошибка MFA</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="443"/>
+        <source>Set up two-factor authentication</source>
+        <translation type="unfinished">Настройка двухфакторной аутентификации</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="447"/>
+        <source>Scan this QR code with your authenticator app</source>
+        <translation type="unfinished">Отсканируйте QR-код в приложении-аутентификаторе</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="459"/>
+        <source>I have scanned the QR code</source>
+        <translation type="unfinished">Я отсканировал QR-код</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="461"/>
+        <source>← Back</source>
+        <translation type="unfinished">← Назад</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="241"/>
+        <location filename="../src/login_controller.py" line="465"/>
+        <location filename="../src/login_controller.py" line="501"/>
+        <source>Authentication code</source>
+        <translation type="unfinished">Код аутентификации</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="472"/>
+        <source>Enter the code from your authenticator app or email</source>
+        <translation>Введите код из приложения-аутентификатора или из письма</translation>
+    </message>
+    <message>
+        <location filename="../src/login_controller.py" line="436"/>
+        <source>Use your authenticator app to add your account (for example, Google Authenticator, Authy, etc.).</source>
+        <translation>Используйте приложение-аутентификатор, чтобы добавить аккаунт (например, Google Authenticator, Authy и др.).</translation>
     </message>
 </context>
 <context>
@@ -803,31 +899,31 @@ Contact your administrator.</source>
     <name>Widget</name>
     <message>
         <location filename="../src/main_page_controller.py" line="119"/>
-        <location filename="../ui/form.ui" line="1963"/>
+        <location filename="../ui/form.ui" line="2361"/>
         <source>Home is empty</source>
         <translation>Главная пуста</translation>
     </message>
     <message>
         <location filename="../src/main_page_controller.py" line="120"/>
-        <location filename="../ui/form.ui" line="1873"/>
+        <location filename="../ui/form.ui" line="2271"/>
         <source>No applications</source>
         <translation>Приложения отсутствуют</translation>
     </message>
     <message>
         <location filename="../src/main_page_controller.py" line="121"/>
-        <location filename="../ui/form.ui" line="1770"/>
+        <location filename="../ui/form.ui" line="2168"/>
         <source>No desktops</source>
         <translation>Рабочие столы отсутствуют</translation>
     </message>
     <message>
         <location filename="../src/main_page_controller.py" line="128"/>
-        <location filename="../ui/form.ui" line="1650"/>
+        <location filename="../ui/form.ui" line="2048"/>
         <source>Desktops</source>
         <translation>Рабочие столы</translation>
     </message>
     <message>
         <location filename="../src/main_page_controller.py" line="129"/>
-        <location filename="../ui/form.ui" line="1556"/>
+        <location filename="../ui/form.ui" line="1954"/>
         <source>Apps</source>
         <translation>Приложения</translation>
     </message>
@@ -838,6 +934,7 @@ Contact your administrator.</source>
     </message>
     <message>
         <location filename="../ui/form.ui" line="111"/>
+        <location filename="../ui/form.ui" line="855"/>
         <source>Continue</source>
         <translation>Продолжить</translation>
     </message>
@@ -852,29 +949,31 @@ Contact your administrator.</source>
         <translation>← Назад к профилям</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="306"/>
+        <location filename="../ui/form.ui" line="332"/>
+        <location filename="../ui/form.ui" line="777"/>
+        <location filename="../ui/form.ui" line="1012"/>
         <source>← Back</source>
         <translation>← Назад</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="319"/>
+        <location filename="../ui/form.ui" line="469"/>
         <location filename="../ui/form.ui" line="558"/>
         <source>Password</source>
         <translation>Пароль</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="345"/>
+        <location filename="../ui/form.ui" line="381"/>
         <location filename="../ui/form.ui" line="677"/>
         <source>Login</source>
         <translation>Войти</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="443"/>
+        <location filename="../ui/form.ui" line="456"/>
         <source>primary</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="463"/>
+        <location filename="../ui/form.ui" line="443"/>
         <source>Username</source>
         <translation>Имя пользователя</translation>
     </message>
@@ -889,55 +988,85 @@ Contact your administrator.</source>
         <translation>Другой профиль</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="761"/>
+        <location filename="../ui/form.ui" line="933"/>
+        <source>Enter the code from your authenticator app</source>
+        <translation>Введите код из приложения-аутентификатора</translation>
+    </message>
+    <message>
+        <location filename="../ui/form.ui" line="826"/>
+        <location filename="../ui/form.ui" line="894"/>
+        <source>Authentication code</source>
+        <translation>Код аутентификации</translation>
+    </message>
+    <message>
+        <source>Remember this device</source>
+        <translation type="vanished">Запомнить это устройство</translation>
+    </message>
+    <message>
+        <location filename="../ui/form.ui" line="1058"/>
+        <source>Set up two-factor authentication</source>
+        <translation>Настройка двухфакторной аутентификации</translation>
+    </message>
+    <message>
+        <location filename="../ui/form.ui" line="996"/>
+        <source>Scan this QR code with your authenticator app</source>
+        <translation>Отсканируйте QR-код в приложении-аутентификаторе</translation>
+    </message>
+    <message>
+        <location filename="../ui/form.ui" line="989"/>
+        <source>I have scanned the QR code</source>
+        <translation>Я отсканировал QR-код</translation>
+    </message>
+    <message>
+        <location filename="../ui/form.ui" line="1159"/>
         <source>Select a profile</source>
         <translation>Выбрать профиль</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="771"/>
+        <location filename="../ui/form.ui" line="1169"/>
         <source>+ Add connection</source>
         <translation>+ Добавить подключение</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="1241"/>
+        <location filename="../ui/form.ui" line="1639"/>
         <source>Search in Gorizont-VS-VDI</source>
         <translation>Поиск в Горизонт-ВС-VDI</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="1459"/>
-        <location filename="../ui/form.ui" line="1921"/>
+        <location filename="../ui/form.ui" line="1857"/>
+        <location filename="../ui/form.ui" line="2319"/>
         <source>Home</source>
         <translation>Главная</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="1711"/>
+        <location filename="../ui/form.ui" line="2109"/>
         <source>All Desktops</source>
         <translation>Все рабочие столы</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="1731"/>
-        <location filename="../ui/form.ui" line="1831"/>
+        <location filename="../ui/form.ui" line="2129"/>
+        <location filename="../ui/form.ui" line="2229"/>
         <source>Sort by:</source>
         <translation>Сортировать по:</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="1741"/>
-        <location filename="../ui/form.ui" line="1841"/>
+        <location filename="../ui/form.ui" line="2139"/>
+        <location filename="../ui/form.ui" line="2239"/>
         <source>compact</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="1811"/>
+        <location filename="../ui/form.ui" line="2209"/>
         <source>All Apps</source>
         <translation>Все приложения</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="2008"/>
+        <location filename="../ui/form.ui" line="2406"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../ui/form.ui" line="2044"/>
+        <location filename="../ui/form.ui" line="2442"/>
         <source>Authentication</source>
         <translation>Аутентификация</translation>
     </message>

@@ -18,6 +18,13 @@
         <file>static/nav-home.svg</file>
         <file>static/nav-apps.svg</file>
         <file>static/nav-desktops.svg</file>
+        <file>static/power_on.svg</file>
+        <file>static/power_off.svg</file>
+        <file>static/refresh.svg</file>
+        <file>static/moon.svg</file>
+        <file>static/sun.svg</file>
+        <file>static/transport.svg</file>
+        <file>static/actions.svg</file>
     </qresource>
     <qresource prefix="/fonts">
         <file>fonts/Montserrat-Black.ttf</file>

@@ -1,5 +1,5 @@
 /* =============================================================
-   Горизонт-ВС VDI Client — Master Stylesheet
+   Горизонт-ВС-VDI Client — Master Stylesheet
    ============================================================= */
 
 
@@ -24,7 +24,11 @@ QLabel#lblServerTitle {
     font-family: "Montserrat";
 }
 
-QLabel#lblProfilesTitle {
+QLabel#lblProfilesTitle,
+QLabel#lblMfaLogo_2,
+QLabel#lblMfaTitle,
+QLabel#lblMfaSetupTitle,
+QLabel#lblMfaVerifyTitle {
     font-size: 16px;
     font-weight: 700;
     color: #111827;
@@ -33,7 +37,13 @@ QLabel#lblProfilesTitle {
     font-family: "Montserrat";
 }
 
-QLabel#lblCredsServer {
+QLabel#lblCredsServer,
+QLabel#lblMfaDescription,
+QLabel#lblMfaMessage,
+QLabel#lblMfaSetupDescription,
+QLabel#lblMfaSetupMessage,
+QLabel#lblMfaVerifyDescription,
+QLabel#lblMfaVerifyMessage {
     font-size: 13px;
     color: #6B7280;
     background: transparent;
@@ -47,7 +57,8 @@ QLabel#lblCredsServer {
 QLineEdit#leServerUrl,
 QLineEdit#leCredsUser,
 QLineEdit#leCredsPass,
-QLineEdit#leProfilePass {
+QLineEdit#leProfilePass,
+QLineEdit#leMfaCode {
     background: #EDF9FC;
     border: 1px solid #D1D5DB;
     border-radius: 10px;
@@ -63,7 +74,8 @@ QLineEdit#leProfilePass {
 QLineEdit#leServerUrl:focus,
 QLineEdit#leCredsUser:focus,
 QLineEdit#leCredsPass:focus,
-QLineEdit#leProfilePass:focus {
+QLineEdit#leProfilePass:focus,
+QLineEdit#leMfaCode:focus {
     border: 1px solid #0B7285;
 }
 
@@ -91,7 +103,10 @@ QComboBox[hasError="true"] {
 
 QLabel#lblPasswordLogo,
 QLabel#lblCredsLogo,
-QLabel#lblServerLogo {
+QLabel#lblServerLogo,
+QLabel#lblMfaLogo,
+QLabel#lblMfaSetupLogo,
+QLabel#lblMfaVerifyLogo {
     qproperty-alignment: 'AlignCenter';
 }
 
@@ -106,7 +121,10 @@ QLabel#lblServerLogo {
 
 QPushButton#btnConnect,
 QPushButton#btnCredsLogin,
-QPushButton#btnProfileLogin {
+QPushButton#btnMfaVerify,
+QPushButton#btnProfileLogin,
+QPushButton#btnMfaSetupContinue,
+QPushButton#btnMfaVerify {
     background: #0B7285;
     color: white;
     border: none;
@@ -121,19 +139,28 @@ QPushButton#btnProfileLogin {
 
 QPushButton#btnConnect:hover,
 QPushButton#btnCredsLogin:hover,
-QPushButton#btnProfileLogin:hover {
+QPushButton#btnMfaVerify:hover,
+QPushButton#btnProfileLogin:hover,
+QPushButton#btnMfaSetupContinue:hover,
+QPushButton#btnMfaVerify:hover {
     background: #0A667A;
 }
 
 QPushButton#btnConnect:pressed,
 QPushButton#btnCredsLogin:pressed,
-QPushButton#btnProfileLogin:pressed {
+QPushButton#btnMfaVerify:pressed,
+QPushButton#btnProfileLogin:pressed,
+QPushButton#btnMfaSetupContinue:pressed,
+QPushButton#btnMfaVerify:pressed {
     background: #095E71;
 }
 
 QPushButton#btnConnect:disabled,
 QPushButton#btnCredsLogin:disabled,
-QPushButton#btnProfileLogin:disabled {
+QPushButton#btnMfaVerify:disabled,
+QPushButton#btnProfileLogin:disabled,
+QPushButton#btnMfaSetupContinue:disabled,
+QPushButton#btnMfaVerify:disabled {
     background: #9CA3AF;
     color: #E5E7EB;
 }
@@ -143,6 +170,9 @@ QPushButton#btnProfileLogin:disabled {
 
 QPushButton#btnBackToProfiles,
 QPushButton#btnCredsBack,
+QPushButton#btnMfaBack,
+QPushButton#btnMfaSetupBack,
+QPushButton#btnMfaVerifyBack,
 QPushButton#btnSwitchAccount,
 QPushButton#btnAddProfile {
     background: transparent;
@@ -155,6 +185,8 @@ QPushButton#btnAddProfile {
 
 QPushButton#btnBackToProfiles:hover,
 QPushButton#btnCredsBack:hover,
+QPushButton#btnMfaSetupBack:hover,
+QPushButton#btnMfaVerifyBack:hover,
 QPushButton#btnSwitchAccount:hover,
 QPushButton#btnAddProfile:hover {
     color: #035E6B;
@@ -185,7 +217,8 @@ QPushButton#btnDeleteProfile:hover {
 
 QLabel#lblServerErrorBanner,
 QLabel#lblCredsErrorBanner,
-QLabel#lblPwErrorBanner {
+QLabel#lblPwErrorBanner,
+QLabel#lblMfaErrorBanner {
     font-size: 12px;
     border-radius: 8px;
     background: transparent;
@@ -197,7 +230,8 @@ QLabel#lblPwErrorBanner {
 
 QLabel#lblServerErrorBanner[hasError="true"],
 QLabel#lblCredsErrorBanner[hasError="true"],
-QLabel#lblPwErrorBanner[hasError="true"] {
+QLabel#lblPwErrorBanner[hasError="true"],
+QLabel#lblMfaErrorBanner[hasError="true"] {
     color: #DC2626;
     background: #FEF2F2;
     border: 1px solid #FECACA;
@@ -599,6 +633,27 @@ QFrame#desktopCard:hover {
     border-color: #BFD8E3;
 }
 
+QPushButton#btnRefresh {
+    background: #4B5563;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0;
+}
+
+QPushButton#btnRefresh:hover {
+    background: #111827;
+    border-color: #475569;
+}
+
+QPushButton#btnRefresh:pressed {
+    background: #020617;
+}
+
+QPushButton#btnRefresh:disabled {
+    background: #111827;
+    border-color: #1F2937;
+}
+
 QLabel#lblAppName,
 QLabel#lblDesktopName {
     color: #4B5563;
@@ -608,12 +663,39 @@ QLabel#lblDesktopName {
     font-family: "Montserrat";
 }
 
-QLabel#lblDesktopTransport,
-QLabel#lblDesktopSubtitle {
+QLabel#lblDesktopStatus,
+QLabel#lblDesktopTransport {
     color: #6B7280;
     font-size: 11px;
     background: transparent;
     font-family: "Montserrat";
+}
+
+QLabel#lblDesktopStatusDot {
+    font-size: 13px;
+    font-weight: 900;
+    background: transparent;
+    font-family: "Montserrat";
+}
+
+QLabel#lblDesktopStatusDot[status="ok"] {
+    color: #22C55E;
+}
+
+QLabel#lblDesktopStatusDot[status="danger"] {
+    color: #EF4444;
+}
+
+QLabel#lblDesktopStatusDot[status="progress"] {
+    color: #F59E0B;
+}
+
+QLabel#lblDesktopStatusDot[status="maintenance"] {
+    color: #8B5CF6;
+}
+
+QLabel#lblDesktopStatusDot[status="unknown"] {
+    color: #94A3B8;
 }
 
 QLabel#lblAppIcon,
@@ -878,8 +960,13 @@ QMenu#userAvatarMenu::separator {
     margin: 6px 8px;
 }
 
+QWidget#avatarDropdownPopup {
+    background: transparent;
+    border: none;
+}
+
 QFrame#avatarDropdownCard {
-    background: rgba(255, 255, 255, 0.99);
+    background: #FFFFFF;
     border: 1px solid #D7E2E8;
     border-radius: 18px;
 }
@@ -1058,3 +1145,71 @@ QLabel#lblPasswordDetail {
     font-family: "Montserrat";
 }
 
+QMenu#serviceCardMenu {
+    background: #FFFFFF;
+    border: 1px solid #D7E2E8;
+    border-radius: 12px;
+    padding: 8px;
+    margin: 0;
+}
+
+QMenu#serviceCardMenu::item {
+    min-width: 145px;
+    min-height: 28px;
+    padding: 8px 36px 8px 42px;
+    margin: 2px 0;
+    border-radius: 8px;
+    color: #334155;
+    background: transparent;
+}
+
+QMenu#serviceCardMenu::icon {
+    width: 18px;
+    height: 18px;
+    left: 14px;
+}
+
+QMenu#serviceCardMenu::right-arrow {
+    width: 8px;
+    height: 8px;
+    right: 14px;
+}
+
+QMenu#serviceCardMenu::item:selected {
+    background: #EEF7FB;
+    color: #0B7285;
+}
+
+QMenu#serviceCardMenu::item:disabled {
+    color: #94A3B8;
+}
+
+QMenu#serviceCardMenu::separator {
+    height: 1px;
+    background: #E5E7EB;
+    margin: 6px 8px;
+}
+
+QLabel#toastNotification {
+    background: rgba(15, 23, 42, 0.96);
+    color: #FFFFFF;
+    border: 1px solid rgba(15, 23, 42, 0.24);
+    border-left: 4px solid #0B7285;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "Montserrat";
+}
+
+QLabel#toastNotification[kind="success"] {
+    border-left-color: #16A34A;
+}
+
+QLabel#toastNotification[kind="info"] {
+    border-left-color: #0B7285;
+}
+
+QLabel#toastNotification[kind="danger"] {
+    border-left-color: #DC2626;
+}

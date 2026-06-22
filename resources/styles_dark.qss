@@ -17,6 +17,16 @@ QWidget#pageLoad {
 QLabel#lblServerTitle,
 QLabel#lblProfilesTitle,
 QLabel#lblCredsServer,
+QLabel#lblMfaDescription,
+QLabel#lblMfaMessage,
+QLabel#lblMfaLogo_2,
+QLabel#lblMfaTitle,
+QLabel#lblMfaSetupTitle,
+QLabel#lblMfaSetupDescription,
+QLabel#lblMfaSetupMessage,
+QLabel#lblMfaVerifyTitle,
+QLabel#lblMfaVerifyDescription,
+QLabel#lblMfaVerifyMessage,
 QLabel#lblTopPartner,
 QLabel#lblHomeSectionTitle,
 QLabel#lblLoadingStatus,
@@ -24,8 +34,8 @@ QLabel#lblSettingsSectionDescription,
 QLabel#lblSettingsStatusHint,
 QLabel#lblAppName,
 QLabel#lblDesktopName,
-QLabel#lblDesktopTransport,
-QLabel#lblDesktopSubtitle {
+QLabel#lblDesktopStatus,
+QLabel#lblDesktopTransport {
     color: #E5E7EB;
 }
 
@@ -47,6 +57,7 @@ QLabel#lblSettingsSectionTitle {
 
 QLineEdit#leServerUrl,
 QLineEdit#leCredsUser,
+QLineEdit#leMfaCode,
 QLineEdit#leCredsPass,
 QLineEdit#leProfilePass,
 QLineEdit#leWorkspaceSearch {
@@ -57,10 +68,32 @@ QLineEdit#leWorkspaceSearch {
 
 QLineEdit#leServerUrl:focus,
 QLineEdit#leCredsUser:focus,
+QLineEdit#leMfaCode:focus,
 QLineEdit#leCredsPass:focus,
 QLineEdit#leProfilePass:focus,
 QLineEdit#leWorkspaceSearch:focus {
     border: 1px solid #38BDF8;
+}
+
+QPushButton#btnRefresh {
+    background: #4B5563;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0;
+}
+
+QPushButton#btnRefresh:hover {
+    background: #111827;
+    border-color: #475569;
+}
+
+QPushButton#btnRefresh:pressed {
+    background: #020617;
+}
+
+QPushButton#btnRefresh:disabled {
+    background: #111827;
+    border-color: #1F2937;
 }
 
 QLineEdit:disabled {
@@ -83,6 +116,9 @@ QPushButton#btnLoginThemeToggle:hover {
 
 QPushButton#btnBackToProfiles,
 QPushButton#btnCredsBack,
+QPushButton#btnMfaBack,
+QPushButton#btnMfaSetupBack,
+QPushButton#btnMfaVerifyBack,
 QPushButton#btnSwitchAccount,
 QPushButton#btnAddProfile {
     color: #38BDF8;
@@ -90,7 +126,8 @@ QPushButton#btnAddProfile {
 
 QLabel#lblServerErrorBanner[hasError="true"],
 QLabel#lblCredsErrorBanner[hasError="true"],
-QLabel#lblPwErrorBanner[hasError="true"] {
+QLabel#lblPwErrorBanner[hasError="true"],
+QLabel#lblMfaErrorBanner[hasError="true"] {
     color: #FCA5A5;
     background: rgba(127, 29, 29, 0.28);
     border: 1px solid #7F1D1D;
@@ -109,6 +146,12 @@ QFrame#appCard,
 QFrame#desktopCard {
     background: rgba(15, 23, 42, 0.96);
     border-color: #1E293B;
+}
+
+QFrame#appCard:hover,
+QFrame#desktopCard:hover {
+    background: #1E293B;
+    border-color: #BFD8E3;
 }
 
 QFrame#frameAppsHeader,
@@ -165,6 +208,33 @@ QLabel#lblHomeEmpty {
     border: 1px dashed #334155;
 }
 
+QLabel#lblDesktopStatusDot {
+    font-size: 13px;
+    font-weight: 900;
+    background: transparent;
+    font-family: "Montserrat";
+}
+
+QLabel#lblDesktopStatusDot[status="ok"] {
+    color: #22C55E;
+}
+
+QLabel#lblDesktopStatusDot[status="danger"] {
+    color: #EF4444;
+}
+
+QLabel#lblDesktopStatusDot[status="progress"] {
+    color: #F59E0B;
+}
+
+QLabel#lblDesktopStatusDot[status="maintenance"] {
+    color: #8B5CF6;
+}
+
+QLabel#lblDesktopStatusDot[status="unknown"] {
+    color: #94A3B8;
+}
+
 QLabel#lblAppIcon,
 QLabel#lblDesktopIcon {
     background: #0F2233;
@@ -204,8 +274,13 @@ QMenu#userAvatarMenu::separator {
     background: #334155;
 }
 
+QWidget#avatarDropdownPopup {
+    background: transparent;
+    border: none;
+}
+
 QFrame#avatarDropdownCard {
-    background: rgba(15, 23, 42, 0.99);
+    background: #0F172A;
     border: 1px solid #334155;
     border-radius: 18px;
 }
@@ -300,4 +375,32 @@ QLabel#lblPasswordUsername {
 
 QLabel#lblPasswordDetail {
     color: #94A3B8;
+}
+
+QMenu#serviceCardMenu {
+    background: #0F172A;
+    border: 1px solid #334155;
+}
+
+QMenu#serviceCardMenu::item {
+    color: #CBD5E1;
+}
+
+QMenu#serviceCardMenu::item:selected {
+    background: #0F2233;
+    color: #7DD3FC;
+}
+
+QMenu#serviceCardMenu::item:disabled {
+    color: #64748B;
+}
+
+QMenu#serviceCardMenu::separator {
+    background: #334155;
+}
+
+QLabel#toastNotification {
+    background: rgba(2, 6, 23, 0.96);
+    color: #E5E7EB;
+    border-color: rgba(148, 163, 184, 0.28);
 }
