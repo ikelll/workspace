@@ -35,11 +35,6 @@ class DesktopCard(QFrame):
         self.setObjectName("desktopCard")
 
         name = (getattr(service, "visual_name", "") or getattr(service, "name", "") or "Desktop").strip()
-        group = getattr(service, "group", None)
-        group_name = (getattr(group, "name", "") or "").strip()
-        status = (getattr(service, "status_text", "") or "").strip()
-        subtitle = " · ".join(part for part in (group_name, status) if part) or "Virtual desktop"
-        description = (getattr(service, "description", "") or "").strip()
         default_transport = getattr(service, "default_transport", None)
         transport_name = (getattr(default_transport, "name", "") or getattr(default_transport, "transport_type", "") or "—").strip()
         service_status = (getattr(service, "status_text", "") or "").strip()

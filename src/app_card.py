@@ -35,7 +35,6 @@ class AppCard(QFrame):
         self.setObjectName("appCard")
 
         title = (getattr(service, "visual_name", "") or getattr(service, "name", "") or "Unknown app").strip()
-        description = (getattr(service, "description", "") or "").strip()
 
         self.ui.lblAppName.setText(title)
         self.ui.lblAppName.setWordWrap(True)

@@ -82,11 +82,6 @@ class AvatarDropdownPopup(QWidget):
         actions.setSpacing(10)
         card_layout.addLayout(actions)
 
-        # self.btnSettings = QPushButton(self.card)
-        # self.btnSettings.setObjectName("btnAvatarDropdownAction")
-        # self.btnSettings.setCursor(Qt.CursorShape.PointingHandCursor)
-        # actions.addWidget(self.btnSettings, 1)
-
         self.btnLogout = QPushButton(self.card)
         self.btnLogout.setObjectName("btnAvatarDropdownDanger")
         self.btnLogout.setCursor(Qt.CursorShape.PointingHandCursor)

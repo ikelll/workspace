@@ -31,8 +31,7 @@ try:
         return psutil.process_iter(*args, **kwargs)
 
 except ImportError:
-
-    def process_iter(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:  # type: ignore[misc]
+    def process_iter() -> typing.Any:
         return []
 
 
@@ -66,7 +65,7 @@ def read_temp_file(filename: str) -> typing.Optional[str]:
         return None
 
 
-def test_server(host: str, port: typing.Union[str, int], timeout: int = 4) -> bool:
+def test_server(host: str, port: str | int, timeout: int = 4) -> bool:
     try:
         sock = socket.create_connection((host, int(port)), timeout)
         sock.close()
@@ -144,7 +143,7 @@ def wait_for_tasks() -> None:
 
 def terminate_tasks() -> None:
     log.debug("Terminating %d task(s)", len(_awaitable_tasks))
-    for awaitable in list(_awaitable_tasks):
+    for awaitable in _awaitable_tasks:
         task = awaitable.task
         try:
             if hasattr(task, "terminate"):

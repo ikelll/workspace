@@ -47,15 +47,19 @@ class SignatureError(TransportError):
     """Script signature verification failed."""
 
 
-def _build_ssl_context(check_certificate: bool = False) -> ssl.SSLContext:
+def _build_ssl_context(trusted_cert_pem: str | None = None) -> ssl.SSLContext:
     ctx = ssl.create_default_context()
-    if not check_certificate:
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.check_hostname = True
+    ctx.verify_mode = ssl.CERT_REQUIRED
+
     cacerts = tools_mod.get_cacerts_file()
     if cacerts:
         ctx.load_verify_locations(cacerts)
+
+    if trusted_cert_pem:
+        ctx.load_verify_locations(cadata=trusted_cert_pem)
+
     return ctx
 
 
@@ -69,28 +73,39 @@ def _fetch_json(
     host = parsed.hostname or ""
     port = int(parsed.port or 443)
 
-    if _trust_store.is_trusted(host, port):
-        check_certificate = False
+    if not check_certificate:
+        raise TransportError("TLS certificate validation is required")
 
     req = urllib.request.Request(url, headers=headers)
-    try:
-        ctx = _build_ssl_context(check_certificate)
+
+    def _request(trusted_cert_pem: str | None = None) -> typing.Any:
+        ctx = _build_ssl_context(trusted_cert_pem)
         with urllib.request.urlopen(req, context=ctx, timeout=600) as resp:
             raw = resp.read()
         return json.loads(raw.decode("utf-8"))
+
+    try:
+        trusted_cert_pem = _trust_store.get_certificate_pem(host, port)
+        return _request(trusted_cert_pem)
+
     except urllib.error.URLError as exc:
         reason = getattr(exc, "reason", None)
-        if isinstance(reason, ssl.SSLCertVerificationError):
-            cert = fetch_certificate_info(host, port, server_hostname=host)
-            should_trust = confirm_certificate(None, cert, [str(reason)])
-            if not should_trust:
-                raise
-            _trust_store.remember(host, port, cert)
-            ctx = _build_ssl_context(False)
-            with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
-                raw = resp.read()
-            return json.loads(raw.decode("utf-8"))
-        raise
+
+        if not isinstance(reason, ssl.SSLCertVerificationError):
+            raise
+
+        cert = fetch_certificate_info(host, port, server_hostname=host)
+        should_trust = confirm_certificate(None, cert, [str(reason)])
+        if not should_trust:
+            raise
+
+        _trust_store.remember(host, port, cert)
+
+        trusted_cert_pem = cert.pem
+        if not trusted_cert_pem:
+            raise TransportError("Trusted certificate does not contain PEM data")
+
+        return _request(trusted_cert_pem)
 
 
 def _unpack_transport_result(
@@ -247,7 +262,7 @@ class _FetchAndRunWorker(QObject):
                 return
 
             result = data.get("result", data) if isinstance(data, dict) else data
-            script_bytes, signature, params, log_data = _unpack_transport_result(result)
+            script_bytes, signature, params, _ = _unpack_transport_result(result)
 
             if not tools_mod.verify_signature(script_bytes, signature.encode()):
                 log.error("Transport script signature INVALID")

@@ -86,7 +86,6 @@ class Spinner(QWidget):
 
     def paintEvent(self, _e) -> None:
         w, h = self.width(), self.height()
-        side = min(w, h)
 
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)

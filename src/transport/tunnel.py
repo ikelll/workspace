@@ -24,7 +24,7 @@ _ACTIVE_FORWARD_SERVERS: weakref.WeakSet[ForwardServer] = weakref.WeakSet()
 
 
 def stop_all() -> None:
-    for fs in list(_ACTIVE_FORWARD_SERVERS):
+    for fs in _ACTIVE_FORWARD_SERVERS:
         try:
             fs.stop()
             with contextlib.suppress(Exception):
@@ -179,12 +179,12 @@ class ForwardServer(socketserver.ThreadingTCPServer):
             ssl_socket.sendall(tc.CMD_TEST)
             resp = ssl_socket.recv(2)
             if resp != tc.RESPONSE_OK:
-                raise Exception(f"Invalid tunnel response: {resp}")
+                raise ValueError(f"Invalid tunnel response: {resp}")
             log.debug("Tunnel is available")
             return True
         except ssl.SSLError as e:
             log.error("Certificate error: %s", e)
-            raise Exception(f"Certificate error: {e}") from e
+            raise RuntimeError(f"Certificate error: {e}") from e
         except Exception as e:
             log.error("Tunnel test failed: %s", e)
         return False
@@ -195,7 +195,7 @@ class ForwardServer(socketserver.ThreadingTCPServer):
         data = ssl_socket.recv(2)
         if data != tc.RESPONSE_OK:
             data += ssl_socket.recv(128)
-            raise Exception(f"Tunnel error: {data.decode(errors='ignore')}")
+            raise ConnectionError(f"Tunnel error: {data.decode(errors='ignore')}")
 
     @staticmethod
     def _connect(
@@ -204,10 +204,25 @@ class ForwardServer(socketserver.ThreadingTCPServer):
         check_certificate: bool = True,
     ) -> ssl.SSLSocket:
         host, port = remote_addr
-        if _trust_store.is_trusted(host, port):
-            check_certificate = False
 
-        def _wrap_socket(allow_unverified: bool) -> ssl.SSLSocket:
+        def _create_context() -> ssl.SSLContext:
+            context = ssl.create_default_context()
+            context.options |= ssl.OP_NO_COMPRESSION
+            context.minimum_version = ssl.TLSVersion.TLSv1_3
+            context.check_hostname = True
+            context.verify_mode = ssl.CERT_REQUIRED
+
+            cacerts = get_cacerts_file()
+            if cacerts is not None:
+                context.load_verify_locations(cacerts)
+
+            trusted_cert_pem = _trust_store.get_certificate_pem(host, port)
+            if trusted_cert_pem:
+                context.load_verify_locations(cadata=trusted_cert_pem)
+
+            return context
+
+        def _wrap_socket() -> ssl.SSLSocket:
             family = socket.AF_INET6 if use_ipv6 else socket.AF_INET
             rsocket = socket.socket(family, socket.SOCK_STREAM)
             try:
@@ -215,33 +230,25 @@ class ForwardServer(socketserver.ThreadingTCPServer):
                 rsocket.connect(remote_addr)
                 rsocket.sendall(tc.HANDSHAKE_V1)
 
-                context = ssl.create_default_context()
-                context.options |= ssl.OP_NO_COMPRESSION
-                context.minimum_version = ssl.TLSVersion.TLSv1_3
-
-                cacerts = get_cacerts_file()
-                if cacerts is not None:
-                    context.load_verify_locations(cacerts)
-
-                if allow_unverified:
-                    context.check_hostname = False
-                    context.verify_mode = ssl.CERT_NONE
-                    log.warning("Certificate checking disabled")
-
+                context = _create_context()
                 return context.wrap_socket(rsocket, server_hostname=host)
             except Exception:
                 rsocket.close()
                 raise
 
         try:
-            return _wrap_socket(not check_certificate)
+            return _wrap_socket()
         except ssl.SSLCertVerificationError as exc:
+            if not check_certificate:
+                raise
+
             cert = fetch_certificate_info(host, port, server_hostname=host)
             should_trust = confirm_certificate(None, cert, [str(exc)])
             if not should_trust:
                 raise
+
             _trust_store.remember(host, port, cert)
-            return _wrap_socket(True)
+            return _wrap_socket()
 
 
 class Handler(socketserver.BaseRequestHandler):
@@ -281,7 +288,7 @@ class Handler(socketserver.BaseRequestHandler):
             while not self.server.stop_flag.is_set():
                 readable, _, exceptional = select.select(readables, [], readables, 1)
                 for err in exceptional:
-                    raise Exception(f"Error on connection: {err}")
+                    raise OSError(f"Error on connection: {err}")
 
                 if self.request in readable:
                     data = self.request.recv(tc.BUFFER_SIZE)

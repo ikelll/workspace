@@ -264,7 +264,7 @@ class ApiClient(QObject):
         on_success: SuccessCb,
         on_error: ErrorCb,
     ) -> None:
-        status, raw = self._consume_reply_bytes(reply, on_error)
+        _, raw = self._consume_reply_bytes(reply, on_error)
         if raw is None:
             return
     

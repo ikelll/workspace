@@ -26,7 +26,7 @@ from src.icons import (
 from src.profile_card import ProfileCard
 from src.profile_manager import Profile, ProfileManager, avatar_color
 
-_URL_RE = re.compile(r"^https?://[a-zA-Z0-9\-.]+(:\d{1,5})?(/.*)?$", re.I)
+_URL_RE = re.compile(r"^https?://[A-Z0-9\-.]+(:\d{1,5})?(/.*)?$", re.I)
 _AVATAR_BIG = 64
 _LOGO_HEIGHT = 40
 _ICON_SIZE = 16
@@ -535,7 +535,7 @@ class LoginController(QObject):
         _show_banner(self._srv_banner, message)
 
     def _extract_qr_image(self, html: str) -> str:
-        match = re.search(r"data:image/(?:png|jpeg);base64,([A-Za-z0-9+/=]+)", html or "", re.I)
+        match = re.search(r"data:image/(?:png|jpeg);base64,([A-Z0-9+/=]+)", html or "", re.I)
         return match.group(1) if match else ""
 
     def _plain_text_from_html(self, html: str) -> str:
@@ -627,19 +627,10 @@ class LoginController(QObject):
                 self._srv_banner, self.tr("The server url/token is not specified")
             )
             return
-        # if not _URL_RE.match(url):
-        #     _set_field_error(self._le_server, True)
-        #     _show_banner(self._srv_banner, self.tr("The address must start with http:// or https://"))
-        #     return
 
         if not url.startswith("http://") and not url.startswith("https://"):
             url = "https://" + url
             self._le_server.setText(url)
-
-        # if not _URL_RE.match(url):
-        #     _set_field_error(self._le_server, True)
-        #     _show_banner(self._srv_banner, self.tr("Invalid server address"))
-        #     return
 
         self._setup_server_url = url
         self._set_server_form_enabled(False)

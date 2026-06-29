@@ -10,6 +10,7 @@ import sys
 from src.infrastructure.logging_setup import setup_logging
 from src.macos_runtime import setup_macos_bundle_environment
 setup_macos_bundle_environment()
+
 setup_logging()
 
 from PySide6.QtCore import QEvent, QEventLoop, QSettings, Qt, QTimer  # type: ignore  # noqa: E402
@@ -896,25 +897,31 @@ class AppWidget(QWidget):
         super().closeEvent(event)
 
     def eventFilter(self, watched, event):
-        if event.type() == QEvent.KeyPress and event.key() in (
-            Qt.Key_Tab,
-            Qt.Key_Backtab,
+        if (
+            event.type() == QEvent.KeyPress
+            and event.key() in (Qt.Key_Tab, Qt.Key_Backtab)
+            and self._handle_tab_navigation(event.key())
         ):
-            return self._handle_tab_navigation(event.key())
+            return True
+
         if event.type() == QEvent.MouseButtonPress:
             self._clear_search_focus_if_needed(watched)
+
         return super().eventFilter(watched, event)
 
-    def _handle_tab_navigation(self, key):
+    def _handle_tab_navigation(self, key) -> bool:
         focus = QApplication.focusWidget()
-        allowed = {self.ui.leCredsUser, self.ui.leCredsPass}
-        if focus not in allowed:
-            return True
-        nxt = (
-            self.ui.leCredsPass
-            if (key == Qt.Key_Tab) == (focus is self.ui.leCredsUser)
-            else self.ui.leCredsUser
-        )
+
+        if focus not in (self.ui.leCredsUser, self.ui.leCredsPass):
+            return False
+
+        if key == Qt.Key_Tab:
+            nxt = self.ui.leCredsPass if focus is self.ui.leCredsUser else self.ui.leCredsUser
+        elif key == Qt.Key_Backtab:
+            nxt = self.ui.leCredsUser if focus is self.ui.leCredsPass else self.ui.leCredsPass
+        else:
+            return False
+
         nxt.setFocus(Qt.TabFocusReason)
         return True
 
