@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 import typing
-images base64
+import base64
 
 from cryptography.hazmat.backends import default_backend  # type: ignore
 from cryptography.hazmat.primitives import hashes, serialization  # type: ignore
@@ -182,20 +182,18 @@ def execute_before_exit() -> None:
 
 def verify_signature(script: bytes, signature: bytes) -> bool:
     public_key = serialization.load_pem_public_key(
-        data=PUBLIC_KEY, backend=default_backend()
         data=PUBLIC_KEY,
         backend=default_backend(),
     )
 
     signature_b64 = signature.strip()
 
-    # ВАЖНО:
-    # broker/macOS transport может прислать не реальный newline,
-    # а буквальные символы "\n" / "\r" внутри base64.
+    # broker/macOS transport может прислать не реальные переводы строк,
+    # а символы "\n" и "\r" внутри base64.
     signature_b64 = signature_b64.replace(b"\\n", b"")
     signature_b64 = signature_b64.replace(b"\\r", b"")
 
-    # На всякий случай убираем и реальные whitespace.
+    # Удаляем любые реальные whitespace.
     signature_b64 = signature_b64.replace(b"\n", b"")
     signature_b64 = signature_b64.replace(b"\r", b"")
     signature_b64 = signature_b64.replace(b"\t", b"")
@@ -209,8 +207,6 @@ def verify_signature(script: bytes, signature: bytes) -> bool:
 
     try:
         public_key.verify(  # type: ignore[union-attr]
-            base64.b64decode(signature),
-        public_key.verify(
             signature_raw,
             script,
             padding.PKCS1v15(),
@@ -219,10 +215,8 @@ def verify_signature(script: bytes, signature: bytes) -> bool:
     except Exception:
         log.exception("Transport script signature verify failed")
         return False
-    return True
 
     return True
-
 
 def get_cacerts_file() -> typing.Optional[str]:
     if "CERTIFICATE_BUNDLE_PATH" in os.environ:
