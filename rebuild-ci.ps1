@@ -3,12 +3,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Run from project root.
-if (-not (Test-Path "C:\client\venv\Scripts\python.exe")) {
+if (-not (Test-Path "venv\Scripts\python.exe")) {
     Write-Host "[ERROR] venv\Scripts\python.exe not found"
     exit 1
 }
 
-& "C:\client\venv\Scripts\Activate.ps1"
+& "venv\Scripts\Activate.ps1"
 
 # UI files
 Get-ChildItem "ui" -Filter "*.ui" | ForEach-Object {
@@ -26,7 +26,7 @@ if (Test-Path "resources\resource.qrc") {
 
 # Translations
 Write-Host "[LUPDATE]"
-pyside6-lupdate main.py src -ts i18n\ru_RU.ts i18n\en_US.ts
+pyside6-lupdate Gorizont-VS-VDI.py src -ts i18n\ru_RU.ts i18n\en_US.ts
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "[LRELEASE]"

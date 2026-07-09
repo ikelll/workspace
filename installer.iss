@@ -1,6 +1,6 @@
 ; Руслан Саруханов
 ; === Inno Setup Script ===
-; Инсталлятор GorizontVS-VDI-Client + UsbDk + GStreamer поддержка
+; Инсталлятор Gorizont-VS-VDI-Client + UsbDk + GStreamer поддержка
 ; Переменные PATH и GST_PLUGIN_PATH
 ; URL scheme handlers: gorizontvs://, gorizontvss://
 ; WARNING внимательно меняйте пути до файлов на свой путь C:\Users\gorizont\Desktop\client-1.7.5\
@@ -9,12 +9,12 @@
 
 [Setup]
 AppId={{a827c859-e2f7-4b60-8d14-b8ad9527e10wa}
-AppName=GorizontVS-VDI-Client
+AppName=Gorizont-VS-VDI-Client
 AppVersion=1.8
-DefaultDirName={pf}\GorizontVS-VDI-Client
-DefaultGroupName=GorizontVS-VDI-Client
+DefaultDirName={pf}\Gorizont-VS-VDI-Client
+DefaultGroupName=Gorizont-VS-VDI-Client
 OutputDir=installer
-OutputBaseFilename=ГоризонтВС-VDI-Клиент_1.8_x64
+OutputBaseFilename=Горизонт-ВС-VDI-Клиент_1.8_x64
 Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
@@ -22,7 +22,7 @@ SetupIconFile=resources\static\app.ico
 WizardStyle=modern
 UsePreviousLanguage=no
 PrivilegesRequired=admin
-UninstallDisplayIcon={app}\GorizontVS-VDI.exe
+UninstallDisplayIcon={app}\Gorizont-VS-VDI.exe
 DisableProgramGroupPage=yes
 
 [Languages]
@@ -30,17 +30,17 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [CustomMessages]
-AppName=GorizontVS-VDI-Client
-AppName_english=GorizontVS-VDI-Client
-AppName_russian=ГоризонтВС-VDI-Клиент
+AppName=Gorizont-VS-VDI-Client
+AppName_english=Gorizont-VS-VDI-Client
+AppName_russian=Горизонт-ВС-VDI-Клиент
 
-GroupName=GorizontVS-VDI-Client
-GroupName_english=GorizontVS-VDI-Client
-GroupName_russian=ГоризонтВС-VDI-Клиент
+GroupName=Gorizont-VS-VDI-Client
+GroupName_english=Gorizont-VS-VDI-Client
+GroupName_russian=Горизонт-ВС-VDI-Клиент
 
-ShortcutDesc=GorizontVS-VDI-Client
-ShortcutDesc_english=Run GorizontVS VDI Client
-ShortcutDesc_russian=Запустить ГоризонтВС VDI Клиент
+ShortcutDesc=Gorizont-VS-VDI-Client
+ShortcutDesc_english=Run Gorizont-VS-VDI Client
+ShortcutDesc_russian=Запустить Горизонт-ВС-VDI Клиент
 
 UsbDkMsg=Установка драйвера UsbDk...
 UsbDkMsg_english=Installing UsbDk driver...
@@ -49,7 +49,7 @@ UsbDkMsg_russian=Установка драйвера UsbDk...
 [Files]
 ; Основной клиент и Spicy
 Source: "spice\bin\spicy.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist-win\GorizontVS-VDI.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist-win\Gorizont-VS-VDI.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; usb.ids
 Source: "spice\usb.ids"; DestDir: "{app}\share\hwdata"; Flags: ignoreversion
 
@@ -73,15 +73,15 @@ Source: "resources\static\app.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "spice\UsbDk_1.0.22_x64.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
-Name: "{group}\ГоризонтВС VDI Клиент"; \
-    Filename: "{app}\GorizontVS-VDI.exe"; \
+Name: "{group}\Горизонт-ВС VDI Клиент"; \
+    Filename: "{app}\Gorizont-VS-VDI.exe"; \
     IconFilename: "{app}\app.ico"; \
-    Comment: "Запустить ГоризонтВС VDI Клиент"
+    Comment: "Запустить Горизонт-ВС VDI Клиент"
 
-Name: "{commondesktop}\ГоризонтВС VDI Клиент"; \
-    Filename: "{app}\GorizontVS-VDI.exe"; \
+Name: "{commondesktop}\Горизонт-ВС VDI Клиент"; \
+    Filename: "{app}\Gorizont-VS-VDI.exe"; \
     IconFilename: "{app}\app.ico"; \
-    Comment: "Запустить ГоризонтВС VDI Клиент"
+    Comment: "Запустить Горизонт-ВС VDI Клиент"
 
 [Run]
 ;Устанавливаем UsbDk бесшумно
@@ -91,7 +91,7 @@ Filename: "msiexec.exe"; \
   Flags: runhidden
 
 ; Запуск клиента после установки
-Filename: "{app}\GorizontVS-VDI.exe"; Description: "{cm:ShortcutDesc}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Gorizont-VS-VDI.exe"; Description: "{cm:ShortcutDesc}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
 ; Добавляем {app} в PATH для запуска клиента и загрузки runtime DLL
@@ -121,16 +121,16 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 ; =========================
 
 ; --- gorizontvs ---
-Root: HKCR; Subkey: "gorizontvs"; ValueType: string; ValueName: ""; ValueData: "URL:GorizontVS Protocol"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "gorizontvs"; ValueType: string; ValueName: ""; ValueData: "URL:Gorizont-VS Protocol"; Flags: uninsdeletekey
 Root: HKCR; Subkey: "gorizontvs"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
-Root: HKCR; Subkey: "gorizontvs\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\GorizontVS-VDI.exe"",0"
-Root: HKCR; Subkey: "gorizontvs\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\GorizontVS-VDI.exe"" ""%1"""
+Root: HKCR; Subkey: "gorizontvs\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\Gorizont-VS-VDI.exe"",0"
+Root: HKCR; Subkey: "gorizontvs\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Gorizont-VS-VDI.exe"" ""%1"""
 
 ; --- gorizontvss ---
 Root: HKCR; Subkey: "gorizontvss"; ValueType: string; ValueName: ""; ValueData: "URL:GorizontVSS Protocol"; Flags: uninsdeletekey
 Root: HKCR; Subkey: "gorizontvss"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
-Root: HKCR; Subkey: "gorizontvss\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\GorizontVS-VDI.exe"",0"
-Root: HKCR; Subkey: "gorizontvss\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\GorizontVS-VDI.exe"" ""%1"""
+Root: HKCR; Subkey: "gorizontvss\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\Gorizont-VS-VDI.exe"",0"
+Root: HKCR; Subkey: "gorizontvss\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Gorizont-VS-VDI.exe"" ""%1"""
 
 [Code]
 

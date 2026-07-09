@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-DESKTOP="GorizontVS-VDI.desktop"
+DESKTOP="Gorizont-VS-VDI.desktop"
 APPS_DIR="/usr/share/applications"
 MIMEAPPS="/usr/share/applications/mimeapps.list"
 

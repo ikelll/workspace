@@ -38,7 +38,10 @@ def _get_runner() -> _GuiThreadRunner | None:
     if app is None:
         return None
     if _runner is None:
-        _runner = _GuiThreadRunner(app)
+        runner = _GuiThreadRunner()
+        if runner.thread() is not app.thread():
+            runner.moveToThread(app.thread())
+        _runner = runner
     return _runner
 
 

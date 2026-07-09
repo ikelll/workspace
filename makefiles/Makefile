@@ -9,23 +9,23 @@ alt: alt-usb alt-protocol alt-spice alt-gtk
 
 usbredir:
 	cd usbredir && \
-        rm -rf $(BUILD_DIR) && \
-        meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-        ninja -C $(BUILD_DIR) install
+	rm -rf $(BUILD_DIR) && \
+	meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
+	ninja -C $(BUILD_DIR) install
 
 
 spice-protocol:
 	cd spice-protocol && \
-        rm -rf $(BUILD_DIR) && \
-        meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
-        ninja -C $(BUILD_DIR) install 
+	rm -rf $(BUILD_DIR) && \
+	meson setup $(BUILD_DIR) --prefix=$(PREFIX) && \
+	ninja -C $(BUILD_DIR) install 
 
 
 spice:
 	cd spice && \
-        rm -rf $(BUILD_DIR) && \
-        CXXFLAGS="-D_LIBCPP_HARDENING_MODE=none" meson setup $(BUILD_DIR) --prefix=$(PREFIX)  -Dcpp_std=gnu++17  -Dtests=false && \
-        ninja -C $(BUILD_DIR) install  
+	rm -rf $(BUILD_DIR) && \
+	CXXFLAGS="-D_LIBCPP_HARDENING_MODE=none" meson setup $(BUILD_DIR) --prefix=$(PREFIX)  -Dcpp_std=gnu++17  -Dtests=false && \
+	ninja -C $(BUILD_DIR) install  
 
 
 spice-gtk:
@@ -87,10 +87,7 @@ install:
 
 check:
 	echo "YEEEEEEEEEEEEEEEEEEEEEES"
-
 	#chmod u+s /opt/build/spice/usr/libexec/spice-client-glib-usb-acl-helper
 
 clean:
 	rm -rf */$(BUILD_DIR)
-
-

@@ -1,7 +1,7 @@
 [app]
 title = Gorizont-VS_VDI_Workspace
 project_dir = .
-input_file = GorizontVS-VDI.py
+input_file = Gorizont-VS-VDI.py
 #project_file = pyproject.toml
 exec_directory = .
 icon = resources/static/app.ico

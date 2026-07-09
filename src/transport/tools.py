@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 import typing
-import base64
+images base64
 
 from cryptography.hazmat.backends import default_backend  # type: ignore
 from cryptography.hazmat.primitives import hashes, serialization  # type: ignore
@@ -182,6 +182,7 @@ def execute_before_exit() -> None:
 
 def verify_signature(script: bytes, signature: bytes) -> bool:
     public_key = serialization.load_pem_public_key(
+        data=PUBLIC_KEY, backend=default_backend()
         data=PUBLIC_KEY,
         backend=default_backend(),
     )
@@ -207,6 +208,8 @@ def verify_signature(script: bytes, signature: bytes) -> bool:
         return False
 
     try:
+        public_key.verify(  # type: ignore[union-attr]
+            base64.b64decode(signature),
         public_key.verify(
             signature_raw,
             script,
@@ -216,6 +219,7 @@ def verify_signature(script: bytes, signature: bytes) -> bool:
     except Exception:
         log.exception("Transport script signature verify failed")
         return False
+    return True
 
     return True
 

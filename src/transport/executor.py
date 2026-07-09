@@ -47,10 +47,13 @@ class SignatureError(TransportError):
     """Script signature verification failed."""
 
 
-def _build_ssl_context(trusted_cert_pem: str | None = None) -> ssl.SSLContext:
+def _build_ssl_context(
+    trusted_cert_pem: str | None = None,
+    *,
+    check_hostname: bool = True,
+) -> ssl.SSLContext:
     ctx = ssl.create_default_context()
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-    ctx.check_hostname = True
     ctx.verify_mode = ssl.CERT_REQUIRED
 
     cacerts = tools_mod.get_cacerts_file()
@@ -59,6 +62,7 @@ def _build_ssl_context(trusted_cert_pem: str | None = None) -> ssl.SSLContext:
 
     if trusted_cert_pem:
         ctx.load_verify_locations(cadata=trusted_cert_pem)
+    ctx.check_hostname = check_hostname
 
     return ctx
 
@@ -79,7 +83,10 @@ def _fetch_json(
     req = urllib.request.Request(url, headers=headers)
 
     def _request(trusted_cert_pem: str | None = None) -> typing.Any:
-        ctx = _build_ssl_context(trusted_cert_pem)
+        ctx = _build_ssl_context(
+            trusted_cert_pem,
+            check_hostname=trusted_cert_pem is None,
+        )
         with urllib.request.urlopen(req, context=ctx, timeout=600) as resp:
             raw = resp.read()
         return json.loads(raw.decode("utf-8"))

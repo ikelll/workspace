@@ -209,7 +209,12 @@ class ForwardServer(socketserver.ThreadingTCPServer):
             context = ssl.create_default_context()
             context.options |= ssl.OP_NO_COMPRESSION
             context.minimum_version = ssl.TLSVersion.TLSv1_3
-            context.check_hostname = True
+
+            if not check_certificate:
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                return context
+
             context.verify_mode = ssl.CERT_REQUIRED
 
             cacerts = get_cacerts_file()
@@ -219,6 +224,9 @@ class ForwardServer(socketserver.ThreadingTCPServer):
             trusted_cert_pem = _trust_store.get_certificate_pem(host, port)
             if trusted_cert_pem:
                 context.load_verify_locations(cadata=trusted_cert_pem)
+                context.check_hostname = False
+            else:
+                context.check_hostname = True
 
             return context
 
@@ -236,12 +244,12 @@ class ForwardServer(socketserver.ThreadingTCPServer):
                 rsocket.close()
                 raise
 
+        if not check_certificate:
+            return _wrap_socket()
+
         try:
             return _wrap_socket()
         except ssl.SSLCertVerificationError as exc:
-            if not check_certificate:
-                raise
-
             cert = fetch_certificate_info(host, port, server_hostname=host)
             should_trust = confirm_certificate(None, cert, [str(exc)])
             if not should_trust:

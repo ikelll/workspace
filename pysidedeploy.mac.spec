@@ -1,5 +1,5 @@
 [app]
-title = Gorizont-VS-VDI
+title = Gorizont-VS-VDI Client
 project_dir = .
 input_file = Gorizont-VS-VDI.py
 project_file = pyproject.toml
@@ -9,18 +9,16 @@ exec_directory = dist
 icon = resources/static/app.icns
 
 [python]
-python_path = /Users/ruslan/workspace/venv/bin/python3.11
+python_path = /Users/kirillvasiukov/Desktop/workspace/workspace/venv/bin/python3
 packages = Nuitka==4.0.*,ordered_set,zstandard
 
 [qt]
 modules = Core,DBus,Gui,Svg,SvgWidgets,Widgets
 plugins = iconengines,imageformats,platforminputcontexts,styles
-qml_files = 
 
 [nuitka]
 mode = onefile
 extra_args = 
-	--windows-console-mode=force
 	--quiet
 	--noinclude-qt-translations
 	--include-package=spnego

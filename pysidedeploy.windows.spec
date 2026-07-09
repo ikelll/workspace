@@ -1,13 +1,13 @@
 [app]
 
 # User-facing app name.
-title = GorizontVS-VDI
+title = Gorizont-VS-VDI
 
 # Root of the project.
 project_dir = .
 
 # Entry point.
-input_file = GorizontVS-VDI.py
+input_file = Gorizont-VS-VDI.py
 project_file = pyproject.toml
 
 # Output directory for Windows artifacts.
@@ -36,11 +36,19 @@ plugins = iconengines,imageformats,platforminputcontexts,styles
 mode = onefile
 extra_args =
     --assume-yes-for-downloads
-    --msvc=latest  
+    --msvc=latest
     --quiet
     --noinclude-qt-translations
     --windows-console-mode=disable
+    --include-package=src
+    --include-package=src.auth
+    --include-module=src.auth.negotiate
     --include-package=spnego
+    --include-package=spnego._sspi
+    --include-package=spnego._negotiate
+    --include-package=spnego._ntlm
     --include-package=sspilib
-    --include-module=win32crypt 
     --include-module=win32api
+    --include-module=win32crypt
+    --include-module=win32security
+    --include-module=win32con

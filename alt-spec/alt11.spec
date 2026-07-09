@@ -1,12 +1,12 @@
-name:           GorizontVS-VDI-Client-Setup
+name:           Gorizont-VS-VDI-Client-Setup
 Version:        1.8
 Release:        alt11
-Summary:        GorizontVS VDI Client Setup for ALT Linux
+Summary:        Gorizont-VS VDI Client Setup for ALT Linux
 
 Group:          Applications/Networking
 License:        LGPLv2+
-URL:            https://gorizont-vs.ru
-Packager:       GorizontVS Dev Team
+URL:            https://pangeo-gorizont.ru
+Packager:       Gorizont-VS Dev Team
 
 # Зависимости ALT Linux
 Requires: gstreamer1.0
@@ -35,7 +35,7 @@ BuildArch:      x86_64
 BuildRoot:      %_tmppath/%name-%version-buildroot
 
 %description
-GorizontVS VDI Client Setup for ALT Linux.
+Gorizont-VS VDI Client Setup for ALT Linux.
 
 
 %prep
@@ -63,7 +63,7 @@ rm -rf %buildroot
 %defattr(755,root,root,755)
 
 # bin
-/usr/bin/GorizontVS-VDI
+/usr/bin/Gorizont-VS-VDI
 /usr/bin/spicy
 /usr/bin/spicy-screenshot
 /usr/bin/spicy-stats
@@ -94,9 +94,9 @@ rm -rf %buildroot
 /usr/include/usbredir*
 
 # share
-/usr/share/GorizontVS-VDI/images/logo.ico
-/usr/share/GorizontVS-VDI/VERSION
-/usr/share/applications/GorizontVS-VDI.desktop
+/usr/share/Gorizont-VS-VDI/images/logo.png
+/usr/share/Gorizont-VS-VDI/VERSION
+/usr/share/applications/Gorizont-VS-VDI.desktop
 /usr/share/polkit-1/actions/org.spice-space.lowlevelusbaccess.policy
 
 # locales
@@ -106,7 +106,7 @@ rm -rf %buildroot
 
 
 %changelog
-* Wed Apr 28 2026 GorizontVS Team <pangeo-gorizont.ru> - 1.8-alt11
+* Wed Apr 28 2026 Gorizont-VS Team <pangeo-gorizont.ru> - 1.8-alt11
 - Initial ALT Linux packaging
 
 

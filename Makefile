@@ -1,8 +1,8 @@
-APP_NAME        := GorizontVS-VDI-Client-Setup
+APP_NAME        := Gorizont-VS-VDI-Client-Setup
 BUILD_DIR       := build
 DIST_DIR        := dist
 OUTPUT_DIR      := /mnt/output
-SOURCE_BINARY	:= dist-linux/GorizontVS-VDI
+SOURCE_BINARY	:= dist-linux/Gorizont-VS-VDI
 SPICE_DIR	:= /opt/build/spice/usr/
 BUILD_USR	:= /opt/build/build/usr
 
@@ -30,19 +30,19 @@ debian12: check sync rule
 	@mkdir -p "$(DIST_DIR)" "$(OUTPUT_DIR)"
 	chmod +x packaging/postinst.sh
 	chmod +x packaging/postrm.sh
-	chmod +x /opt/build/dist-linux/GorizontVS-VDI.bin
-	install /opt/build/dist-linux/GorizontVS-VDI.bin /opt/build/build/usr/bin/GorizontVS-VDI
-	cp VERSION build/usr/share/GorizontVS-VDI/VERSION
-	cat build/usr/share/GorizontVS-VDI/VERSION
+	chmod +x /opt/build/dist-linux/Gorizont-VS-VDI.bin
+	install /opt/build/dist-linux/Gorizont-VS-VDI.bin /opt/build/build/usr/bin/Gorizont-VS-VDI
+	cp VERSION build/usr/share/Gorizont-VS-VDI/VERSION
+	cat build/usr/share/Gorizont-VS-VDI/VERSION
 	fpm -s dir -t deb \
                 -n $(APP_NAME) \
                 -v $(SANITIZED_VERSION) \
                 --architecture $(ARCH) \
                 --prefix=/ \
                 --url "https://pangeo-gorizont.ru" \
-                --description "GorizontVS VDI Client Setup for Debian, Ubuntu, Astra Linux OS" \
+                --description "Gorizont-VS VDI Client Setup for Debian, Ubuntu, Astra Linux OS" \
                 --maintainer "https://pangeo-gorizont.ru" \
-		--depends libphodav-3.0-0 \
+		--depends libphodav-3.0-0  \
 		--depends gstreamer1.0-pulseaudio \
 		--depends gstreamer1.0-x \
 		--depends gstreamer1.0-plugins-bad \
@@ -74,13 +74,13 @@ alt10:
 	/opt/venv/bin/pyside6-deploy -c pysidedeploy.linux.spec -f
 	rsync -a /opt/build/spice/ /opt/build/build
 	rsync -a /opt/build/build/ /home/rpmb/RPM/SOURCES/build/
-	chmod +x /opt/build/GorizontVS-VDI.bin
-	install /opt/build/GorizontVS-VDI.bin /home/rpmb/RPM/SOURCES/build/usr/bin/GorizontVS-VDI
-	cp VERSION /home/rpmb/RPM/SOURCES/build/usr/share/GorizontVS-VDI/VERSION
+	chmod +x /opt/build/Gorizont-VS-VDI.bin
+	install /opt/build/Gorizont-VS-VDI.bin /home/rpmb/RPM/SOURCES/build/usr/bin/Gorizont-VS-VDI
+	cp VERSION /home/rpmb/RPM/SOURCES/build/usr/share/Gorizont-VS-VDI/VERSION
 	ls -la /home/rpmb/RPM/SOURCES/build/usr/bin/
-	ls -la /home/rpmb/RPM/SOURCES/build/usr/share/GorizontVS-VDI/
+	ls -la /home/rpmb/RPM/SOURCES/build/usr/share/Gorizont-VS-VDI/
 	runuser rpmb -c "rpmbuild -bb /home/rpmb/RPM/SPECS/alt10.spec"
-	cp /home/rpmb/RPM/RPMS/x86_64/GorizontVS-VDI-Client-Setup-$(SANITIZED_VERSION)-alt10* "$(OUTPUT_DIR)/"
+	cp /home/rpmb/RPM/RPMS/x86_64/Gorizont-VS-VDI-Client-Setup-$(SANITIZED_VERSION)-alt10* "$(OUTPUT_DIR)/"
 
 
 
@@ -99,22 +99,22 @@ alt11:
 
 	rsync -a /opt/build/spice/ /opt/build/build
 	rsync -a /opt/build/build/ /home/rpmb/RPM/SOURCES/build/
-	chmod +x /opt/build/dist-linux/GorizontVS-VDI.bin
-	install /opt/build/dist-linux/GorizontVS-VDI.bin /home/rpmb/RPM/SOURCES/build/usr/bin/GorizontVS-VDI
-	cp VERSION /home/rpmb/RPM/SOURCES/build/usr/share/GorizontVS-VDI/VERSION
+	chmod +x /opt/build/dist-linux/Gorizont-VS-VDI.bin
+	install /opt/build/dist-linux/Gorizont-VS-VDI.bin /home/rpmb/RPM/SOURCES/build/usr/bin/Gorizont-VS-VDI
+	cp VERSION /home/rpmb/RPM/SOURCES/build/usr/share/Gorizont-VS-VDI/VERSION
 	ls -la /home/rpmb/RPM/SOURCES/build/usr/bin/
-	ls -la /home/rpmb/RPM/SOURCES/build/usr/share/GorizontVS-VDI/
+	ls -la /home/rpmb/RPM/SOURCES/build/usr/share/Gorizont-VS-VDI/
 	runuser rpmb -c "rpmbuild -bb /home/rpmb/RPM/SPECS/alt11.spec"
-	cp /home/rpmb/RPM/RPMS/x86_64/GorizontVS-VDI-Client-Setup-$(SANITIZED_VERSION)-alt11* "$(OUTPUT_DIR)/"
+	cp /home/rpmb/RPM/RPMS/x86_64/Gorizont-VS-VDI-Client-Setup-$(SANITIZED_VERSION)-alt11* "$(OUTPUT_DIR)/"
 
 redos: check sync rule
 	@mkdir -p "$(DIST_DIR)" "$(OUTPUT_DIR)"
 	chmod +x packaging/postinst.sh
 	chmod +x packaging/postrm.sh
-	chmod +x /opt/build/dist-linux/GorizontVS-VDI.bin
-	install /opt/build/dist-linux/GorizontVS-VDI.bin /opt/build/build/usr/bin/GorizontVS-VDI
-	cp VERSION build/usr/share/GorizontVS-VDI/VERSION
-	cat build/usr/share/GorizontVS-VDI/VERSION
+	chmod +x /opt/build/dist-linux/Gorizont-VS-VDI.bin
+	install /opt/build/dist-linux/Gorizont-VS-VDI.bin /opt/build/build/usr/bin/Gorizont-VS-VDI
+	cp VERSION build/usr/share/Gorizont-VS-VDI/VERSION
+	cat build/usr/share/Gorizont-VS-VDI/VERSION
 	fpm -s dir -t rpm \
 		-n $(APP_NAME) \
 		-v $(SANITIZED_VERSION) \
@@ -122,7 +122,7 @@ redos: check sync rule
 		--rpm-rpmbuild-define "_build_id_links none" \
 		--prefix=/ \
 		--url "https://gorizont-vs.ru" \
-		--description "GorizontVS VDI Client Setup for RedOS" \
+		--description "Gorizont-VS VDI Client Setup for RedOS" \
 		--maintainer "https://gorizont-vs.ru" \
 		--depends gstreamer1-svt-av1 \
 		--depends gstreamer1-svt-vp9 \
