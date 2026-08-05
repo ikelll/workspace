@@ -2,9 +2,9 @@ PREFIX ?= /opt/homebrew
 DESTDIR ?= ../../build/spice
 BUILD_DIR ?= build
 
-.PHONY: all alt usbredir spice-protocol spice spice-gtk install clean
+.PHONY: all alt usbredir spice-protocol spice spice-gtk phodav install clean
 
-all: usbredir spice-protocol spice spice-gtk check install
+all: usbredir spice-protocol spice spice-gtk check install phodav
 alt: alt-usb alt-protocol alt-spice alt-gtk
 
 usbredir:
