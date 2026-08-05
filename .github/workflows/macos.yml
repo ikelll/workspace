@@ -21,6 +21,7 @@ jobs:
   build-pkg:
     name: Build macOS 14+ PKG with SPICE
     runs-on: macos-14
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -51,8 +52,6 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-
-          brew update
 
           brew install \
             python@3.13 \
@@ -126,7 +125,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
 
           pip install -r requirements.txt
-          pip install pyparsing krb5 nuitka ordered-set zstandard imageio
+          pip install pyparsing krb5 "Nuitka==4.0.*" ordered-set zstandard imageio
 
           python --version | tee build/debug/python-version.txt
           pip --version | tee build/debug/pip-version.txt
@@ -227,6 +226,7 @@ jobs:
           rm -rf dist
           mkdir -p dist
 
+          # The spec uses the repository-relative venv/bin/python path.
           pyside6-deploy -c pysidedeploy.mac.spec
 
           test -d "dist/Gorizont-VS-VDI.app"

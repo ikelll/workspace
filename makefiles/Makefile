@@ -4,7 +4,7 @@ BUILD_DIR ?= build
 
 .PHONY: all alt usbredir spice-protocol spice spice-gtk phodav install clean
 
-all: usbredir spice-protocol spice spice-gtk check install phodav
+all: usbredir spice-protocol spice phodav spice-gtk check install
 alt: alt-usb alt-protocol alt-spice alt-gtk
 
 usbredir:
@@ -24,11 +24,12 @@ spice-protocol:
 spice:
 	cd spice && \
 	rm -rf $(BUILD_DIR) && \
-	CXXFLAGS="-D_LIBCPP_HARDENING_MODE=none" meson setup $(BUILD_DIR) --prefix=$(PREFIX)  -Dcpp_std=gnu++17  -Dtests=false && \
+	meson setup $(BUILD_DIR) --prefix=$(PREFIX) -Dcpp_std=gnu++17 -Dtests=false && \
 	ninja -C $(BUILD_DIR) install  
 
 phodav:
 	cd phodav-3.0 && \
+	rm -rf $(BUILD_DIR) && \
 	meson setup $(BUILD_DIR) --prefix=$(PREFIX) -Dgtk_doc=disabled && \
 	ninja -C $(BUILD_DIR) install && \
 	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install 

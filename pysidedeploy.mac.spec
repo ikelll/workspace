@@ -9,7 +9,7 @@ exec_directory = dist
 icon = resources/static/app.icns
 
 [python]
-python_path = /Users/ruslan/workspace/venv/bin/python3.11
+python_path = venv/bin/python
 packages = Nuitka==4.0.*,ordered_set,zstandard
 
 [qt]
@@ -20,7 +20,6 @@ qml_files =
 [nuitka]
 mode = onefile
 extra_args = 
-	--windows-console-mode=force
 	--quiet
 	--noinclude-qt-translations
 	--include-package=spnego

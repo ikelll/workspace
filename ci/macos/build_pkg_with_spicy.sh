@@ -17,8 +17,13 @@ APP_RESOURCES_DIR="$APP_DST/Contents/Resources"
 APP_FRAMEWORKS_DIR="$APP_DST/Contents/Frameworks"
 SPICE_DST="$APP_RESOURCES_DIR/spice"
 
-echo "==> Clean old build"
-rm -rf "$ROOT_DIR/build"
+echo "==> Clean old package build outputs"
+# Keep build/debug created by previous workflow steps.
+rm -rf "$ROOT_DIR/build/pkgroot" \
+       "$ROOT_DIR/build/component.plist" \
+       "$ROOT_DIR/build/component.pkg"
+rm -f "$ROOT_DIR/build"/Gorizont-VS-VDI-Client-Setup-*.pkg
+mkdir -p "$ROOT_DIR/build/debug"
 
 echo "==> Create clean payload"
 mkdir -p "$PAYLOAD_DIR/Applications"
@@ -269,7 +274,7 @@ chmod -R u+w "$APP_DST" || true
 chmod -R a+rX "$APP_DST"
 
 chmod +x "$APP_MACOS_DIR/$APP_NAME"
-chmod +x "$SPICE_DST/bin/spicy"
+chmod +x "$SPICE_DST/bin/gorizont-spicy"
 chmod +x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
 
 find "$SPICE_DST/bin" -type f -exec chmod +x {} + 2>/dev/null || true
