@@ -71,7 +71,6 @@ jobs:
             hicolor-icon-theme \
             meson \
             ninja \
-            phodav \
             opus \
             jpeg-turbo \
             openssl@3 \
