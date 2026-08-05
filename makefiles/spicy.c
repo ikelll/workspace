@@ -22,6 +22,13 @@
 #include <libintl.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#include <limits.h>
+#include <stdlib.h>
+#endif
+
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -74,9 +81,6 @@ static void init_i18n(void)
         realpath(exe_path, real_exe_path) != NULL) {
 
         /*
-         * spicy лежит:
-         *   Contents/Resources/spice/bin/spicy
-         *
          * переводы лежат:
          *   Contents/Resources/spice/share/locale/ru/LC_MESSAGES/spice-gtk.mo
          */
@@ -185,6 +189,7 @@ struct spice_connection {
     const char       *mouse_state;
     const char       *agent_state;
     gboolean         agent_connected;
+    gboolean         monitor_config_sent;
     int              disconnecting;
 
     /* key: SpiceFileTransferTask, value: TransferTaskWidgets */
@@ -203,19 +208,19 @@ static void usb_connect_failed(GObject               *object,
                                gpointer               data);
 static gboolean is_gtk_session_property(const gchar *property);
 static void del_window(spice_connection *conn, SpiceWindow *win);
+static void schedule_requested_monitor_config(spice_connection *conn);
+static SpiceWindow *get_window(spice_connection *conn, int channel_id, int monitor_id);
+static guint display_id_from_channel_monitor(gint channel_id, gint monitor_id);
 
 /* options */
 static gboolean fullscreen = false;
 static gboolean version = false;
 static char *spicy_title = NULL;
+static gint requested_monitors = 1;
+static gboolean clipboard_host_to_guest_only = FALSE;
+static gboolean clipboard_guest_to_host_only = FALSE;
 #ifdef USE_USBREDIR
-static char *usb_policy = NULL; /* legacy: raw:/block:/allow: */
-static char *usb_redirection = NULL; /* enabled|disabled */
-static char *usb_existing_devices = NULL; /* deny|manual|connect */
-static char *usb_new_devices = NULL; /* deny|manual|connect */
-static char *usb_default_action = NULL; /* deny|allow|connect */
-static GPtrArray *usb_policy_rules = NULL; /* gchar* CLI rules */
-static gboolean usb_policy_cli_active = FALSE;
+static char *usb_policy = NULL;
 #endif
 /* globals */
 static GMainLoop     *mainloop = NULL;
@@ -575,18 +580,6 @@ static void menu_cb_bool_prop(GtkToggleAction *action, gpointer data)
 
     name = gtk_action_get_name(GTK_ACTION(action));
     SPICE_DEBUG("%s: %s = %s", __FUNCTION__, name, state ? "yes" : "no");
-
-#ifdef USE_USBREDIR
-    if (usb_policy_cli_active && g_str_equal(name, "auto-usbredir")) {
-        gboolean forced_state = FALSE;
-
-        g_object_get(win->conn->gtk_session, "auto-usbredir", &forced_state, NULL);
-        if (state != forced_state) {
-            gtk_toggle_action_set_active(action, forced_state);
-        }
-        return;
-    }
-#endif
 
     g_key_file_set_boolean(keyfile, "general", name, state);
 
@@ -1187,11 +1180,11 @@ static void menu_cb_resize_to(GtkAction *action G_GNUC_UNUSED,
 
     gtk_widget_show_all(dialog);
     if (gtk_dialog_run(GTK_DIALOG (dialog)) == GTK_RESPONSE_APPLY) {
-        spice_main_channel_update_display_enabled(win->conn->main, win->id + win->monitor_id, TRUE,
+        spice_main_channel_update_display_enabled(win->conn->main, display_id_from_channel_monitor(win->id, win->monitor_id), TRUE,
                                                   FALSE);
         spice_main_channel_update_display(
             win->conn->main,
-            win->id + win->monitor_id,
+            display_id_from_channel_monitor(win->id, win->monitor_id),
             gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_x)),
             gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_y)),
             gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_width)),
@@ -1225,10 +1218,6 @@ static void restore_configuration(SpiceWindow *win)
     for (i = 0; i < nkeys; ++i) {
         if (g_str_equal(keys[i], "grab-sequence"))
             continue;
-#ifdef USE_USBREDIR
-        if (usb_policy_cli_active && g_str_equal(keys[i], "auto-usbredir"))
-            continue;
-#endif
         state = g_key_file_get_boolean(keyfile, "general", keys[i], &error);
         if (error != NULL) {
             g_clear_error(&error);
@@ -1766,23 +1755,6 @@ if (spice_channel_test_capability(win->display_channel,
                                       win, 0);
     }
 
-#ifdef USE_USBREDIR
-    if (usb_policy_cli_active) {
-        GtkAction *usb_auto_action;
-
-        usb_auto_action = gtk_action_group_get_action(win->ag, "auto-usbredir");
-        if (usb_auto_action) {
-            gboolean usb_auto_state = FALSE;
-
-            g_object_get(win->conn->gtk_session, "auto-usbredir",
-                         &usb_auto_state, NULL);
-            gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(usb_auto_action),
-                                         usb_auto_state);
-            gtk_action_set_sensitive(usb_auto_action, FALSE);
-        }
-    }
-#endif
-
     update_edit_menu_window(win);
 
     toggle = gtk_action_group_get_action(win->ag, "Toolbar");
@@ -1896,6 +1868,7 @@ static void main_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
     switch (event) {
     case SPICE_CHANNEL_OPENED:
         g_message("main channel: opened");
+        conn->monitor_config_sent = FALSE;
         recent_add(conn->session);
         break;
     case SPICE_CHANNEL_SWITCHING:
@@ -2004,6 +1977,9 @@ static void main_agent_update(SpiceChannel *channel, gpointer data)
 
     update_status(conn);
     update_edit_menu(conn);
+
+    if (conn->agent_connected)
+        schedule_requested_monitor_config(conn);
 }
 
 static void inputs_modifiers(SpiceChannel *channel, gpointer data)
@@ -2053,6 +2029,95 @@ static void update_auto_usbredir_sensitive(spice_connection *conn)
         gtk_action_set_sensitive(ac, sensitive);
     }
 #endif
+}
+
+static guint display_id_from_channel_monitor(gint channel_id, gint monitor_id)
+{
+    if (channel_id == 0 && monitor_id >= 0)
+        return (guint)monitor_id;
+
+    return (guint)channel_id;
+}
+
+typedef struct {
+    spice_connection *conn;
+} MonitorConfigData;
+
+static gboolean configure_requested_monitors(gpointer user_data)
+{
+    MonitorConfigData *data = user_data;
+    spice_connection *conn = data->conn;
+    GdkDisplay *gdk_display = gdk_display_get_default();
+    gint host_monitor_count = gdk_display ? gdk_display_get_n_monitors(gdk_display) : 0;
+    gint min_x = G_MAXINT;
+    gint min_y = G_MAXINT;
+    gint i;
+
+    if (conn->main == NULL || !conn->agent_connected) {
+        g_free(data);
+        return G_SOURCE_REMOVE;
+    }
+
+    for (i = 0; i < requested_monitors; i++) {
+        GdkRectangle geometry = { i * 1920, 0, 1920, 1080 };
+
+        if (i < host_monitor_count) {
+            GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, i);
+            gdk_monitor_get_geometry(monitor, &geometry);
+        }
+
+        min_x = MIN(min_x, geometry.x);
+        min_y = MIN(min_y, geometry.y);
+    }
+
+    if (min_x == G_MAXINT)
+        min_x = 0;
+    if (min_y == G_MAXINT)
+        min_y = 0;
+
+    for (i = 0; i < requested_monitors; i++) {
+        GdkRectangle geometry = { i * 1920, 0, 1920, 1080 };
+        gint scale = 1;
+        guint display_id = display_id_from_channel_monitor(0, i);
+
+        if (i < host_monitor_count) {
+            GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, i);
+            gdk_monitor_get_geometry(monitor, &geometry);
+            scale = gdk_monitor_get_scale_factor(monitor);
+        }
+
+        spice_main_channel_update_display_enabled(conn->main, display_id, TRUE, FALSE);
+        spice_main_channel_update_display(conn->main,
+                                          display_id,
+                                          (geometry.x - min_x) * scale,
+                                          (geometry.y - min_y) * scale,
+                                          geometry.width * scale,
+                                          geometry.height * scale,
+                                          TRUE);
+    }
+
+    for (i = requested_monitors; i < MONITORID_MAX; i++)
+        spice_main_channel_update_display_enabled(conn->main, i, FALSE, FALSE);
+
+    g_message("requesting %d guest monitor(s)", requested_monitors);
+    spice_main_channel_send_monitor_config(conn->main);
+    conn->monitor_config_sent = TRUE;
+
+    g_free(data);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_requested_monitor_config(spice_connection *conn)
+{
+    MonitorConfigData *data;
+
+    if (conn->main == NULL || !conn->agent_connected ||
+        conn->monitor_config_sent || requested_monitors <= 0)
+        return;
+
+    data = g_new0(MonitorConfigData, 1);
+    data->conn = conn;
+    g_timeout_add(300, configure_requested_monitors, data);
 }
 
 static SpiceWindow* get_window(spice_connection *conn, int channel_id, int monitor_id)
@@ -2472,76 +2537,56 @@ static void migration_state(GObject *session,
 
 #ifdef USE_USBREDIR
 /* ---- USB policy parsing ----
- *
- * Legacy --usb-policy:
+ * Supported formats:
  *   raw:<filter-string>
- *   block:printer,mass-storage,audio,camera,hid,smartcard
+ *   block:printer,mass-storage,audio,camera,hid
  *   allow:hid,audio
  *
- * Citrix-like policy:
- *   --usb-redirection=enabled|disabled
- *   --usb-existing-devices=deny|manual|connect
- *   --usb-new-devices=deny|manual|connect
- *   --usb-default-action=deny|allow|connect
- *   --usb-rule="DENY: class=hid"
- *   --usb-rule="ALLOW: class=printer"
- *   --usb-rule="CONNECT: vid=0x0951 pid=0x1666"
- *
- * DENY    -> blocked for manual and automatic redirection
- * ALLOW   -> manual redirection is allowed, automatic redirection is not
- * CONNECT -> manual redirection is allowed and automatic redirection is enabled
+ * Generates spice-gtk usbredir filter-string:
+ *   0xNN,-1,-1,-1,<allow>|...|-1,-1,-1,-1,<default_allow>
  */
-typedef enum {
-    USB_RULE_DENY = 0,
-    USB_RULE_ALLOW,
-    USB_RULE_CONNECT
-} UsbPolicyAction;
-
 static gboolean
-usb_class_from_token(const gchar *tok, guint *klass)
+usb_class_from_token(const gchar *tok, guint *out_class_hex)
 {
     if (tok == NULL || *tok == '\0') {
         return FALSE;
     }
 
-    if (g_ascii_strcasecmp(tok, "hid") == 0 || g_ascii_strcasecmp(tok, "input") == 0) {
-        *klass = 0x03;
-        return TRUE;
+    if (g_ascii_strcasecmp(tok, "hid") == 0) {
+        *out_class_hex = 0x03; return TRUE;
     }
     if (g_ascii_strcasecmp(tok, "printer") == 0) {
-        *klass = 0x07;
-        return TRUE;
+        *out_class_hex = 0x07; return TRUE;
     }
     if (g_ascii_strcasecmp(tok, "mass-storage") == 0 ||
-        g_ascii_strcasecmp(tok, "storage") == 0 ||
-        g_ascii_strcasecmp(tok, "flash") == 0) {
-        *klass = 0x08;
-        return TRUE;
+        g_ascii_strcasecmp(tok, "mass_storage") == 0 ||
+        g_ascii_strcasecmp(tok, "storage") == 0) {
+        *out_class_hex = 0x08; return TRUE;
     }
+    if (g_ascii_strcasecmp(tok, "audio") == 0) {
+        *out_class_hex = 0x01; return TRUE;
+    }
+    if (g_ascii_strcasecmp(tok, "camera") == 0 ||
+        g_ascii_strcasecmp(tok, "video") == 0) {
+        *out_class_hex = 0x0e; return TRUE; /* Video */
+    }
+
+    /* Smartcard / CCID readers (USB interface class 0x0B)
+     * Note: many CCID readers are composite devices (bDeviceClass=0),
+     * but usbredir's filter logic can match interface classes too.
+     */
     if (g_ascii_strcasecmp(tok, "smartcard") == 0 ||
         g_ascii_strcasecmp(tok, "smart-card") == 0 ||
         g_ascii_strcasecmp(tok, "ccid") == 0) {
-        *klass = 0x0b;
-        return TRUE;
-    }
-    if (g_ascii_strcasecmp(tok, "video") == 0 ||
-        g_ascii_strcasecmp(tok, "camera") == 0 ||
-        g_ascii_strcasecmp(tok, "webcam") == 0) {
-        *klass = 0x0e;
-        return TRUE;
-    }
-    if (g_ascii_strcasecmp(tok, "audio") == 0) {
-        *klass = 0x01;
-        return TRUE;
+        *out_class_hex = 0x0b; return TRUE;
     }
 
-    if (g_str_has_prefix(tok, "0x") || g_ascii_isdigit(tok[0])) {
+    /* allow explicit hex like 0x08 */
+    if (g_str_has_prefix(tok, "0x") || g_str_has_prefix(tok, "0X")) {
         gchar *end = NULL;
-        guint64 v;
-
-        v = g_ascii_strtoull(tok, &end, 0);
-        if (end && *end == '\0' && v <= 0xff) {
-            *klass = (guint)v;
+        guint v = (guint)g_ascii_strtoull(tok, &end, 16);
+        if (end && *end == '\0') {
+            *out_class_hex = v;
             return TRUE;
         }
     }
@@ -2549,327 +2594,40 @@ usb_class_from_token(const gchar *tok, guint *klass)
     return FALSE;
 }
 
-static gboolean
-parse_usb_mode(const gchar *value,
-               UsbPolicyAction *out_action,
-               GError **err)
-{
-    if (!value || !*value) {
-        g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                    "USB mode must be deny, manual/allow or connect");
-        return FALSE;
-    }
-
-    if (g_ascii_strcasecmp(value, "deny") == 0 ||
-        g_ascii_strcasecmp(value, "disabled") == 0 ||
-        g_ascii_strcasecmp(value, "block") == 0) {
-        *out_action = USB_RULE_DENY;
-        return TRUE;
-    }
-
-    if (g_ascii_strcasecmp(value, "manual") == 0 ||
-        g_ascii_strcasecmp(value, "allow") == 0 ||
-        g_ascii_strcasecmp(value, "enabled") == 0) {
-        *out_action = USB_RULE_ALLOW;
-        return TRUE;
-    }
-
-    if (g_ascii_strcasecmp(value, "connect") == 0 ||
-        g_ascii_strcasecmp(value, "auto") == 0 ||
-        g_ascii_strcasecmp(value, "redirect") == 0) {
-        *out_action = USB_RULE_CONNECT;
-        return TRUE;
-    }
-
-    g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                "Unknown USB mode '%s' (use deny, manual/allow or connect)", value);
-    return FALSE;
-}
-
-static gint
-usb_action_allow_for_policy(UsbPolicyAction action)
-{
-    return action == USB_RULE_DENY ? 0 : 1;
-}
-
-static gint
-usb_action_allow_for_auto(UsbPolicyAction action)
-{
-    return action == USB_RULE_CONNECT ? 1 : 0;
-}
-
-static const gchar *
-usb_rule_skip_spaces(const gchar *p)
-{
-    while (p && g_ascii_isspace(*p)) {
-        p++;
-    }
-    return p;
-}
-
-static gboolean
-usb_parse_rule_action(const gchar *rule,
-                      UsbPolicyAction *action,
-                      const gchar **rest,
-                      GError **err)
-{
-    gchar *tmp;
-    gchar *sep = NULL;
-    gchar *action_name;
-    gboolean ok;
-
-    tmp = g_strdup(rule);
-    sep = strchr(tmp, ':');
-    if (!sep) {
-        sep = strchr(tmp, ' ');
-    }
-
-    if (!sep) {
-        g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                    "Invalid --usb-rule '%s' (expected ACTION: matchers)", rule);
-        g_free(tmp);
-        return FALSE;
-    }
-
-    *sep = '\0';
-    action_name = g_strstrip(tmp);
-    ok = parse_usb_mode(action_name, action, err);
-    g_free(tmp);
-
-    if (!ok) {
-        return FALSE;
-    }
-
-    sep = strchr(rule, ':');
-    if (!sep) {
-        sep = strchr(rule, ' ');
-    }
-
-    *rest = usb_rule_skip_spaces(sep + 1);
-    if (!*rest || !**rest) {
-        g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                    "Invalid --usb-rule '%s' (empty matcher)", rule);
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static gboolean
-usb_parse_match_number(const gchar *value, gint max, gint *out)
-{
-    gchar *end = NULL;
-    guint64 v;
-
-    if (!value || !*value) {
-        return FALSE;
-    }
-
-    v = g_ascii_strtoull(value, &end, 0);
-    if (!end || *end != '\0' || v > (guint64)max) {
-        return FALSE;
-    }
-
-    *out = (gint)v;
-    return TRUE;
-}
-
-static gboolean
-usb_filter_tuple_from_rule(const gchar *rule,
-                           UsbPolicyAction *action,
-                           gint *klass,
-                           gint *vid,
-                           gint *pid,
-                           gint *bcd,
-                           GError **err)
-{
-    const gchar *matchers;
-    gchar **parts = NULL;
-    guint matched_fields = 0;
-    int i;
-
-    *klass = -1;
-    *vid = -1;
-    *pid = -1;
-    *bcd = -1;
-
-    if (!usb_parse_rule_action(rule, action, &matchers, err)) {
-        return FALSE;
-    }
-
-    /* Compact compatibility: CONNECT:mass-storage */
-    if (!strchr(matchers, '=') && !strchr(matchers, ',')) {
-        guint cls;
-
-        if (!usb_class_from_token(matchers, &cls)) {
-            g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                        "Unknown USB class token '%s'", matchers);
-            return FALSE;
-        }
-
-        *klass = (gint)cls;
-        return TRUE;
-    }
-
-    parts = g_strsplit_set(matchers, ",; ", -1);
-    for (i = 0; parts && parts[i]; i++) {
-        gchar **kv = NULL;
-        gchar *key;
-        gchar *value;
-
-        if (parts[i][0] == '\0') {
-            continue;
-        }
-
-        kv = g_strsplit(parts[i], "=", 2);
-        if (!kv || !kv[0] || !kv[1]) {
-            g_strfreev(kv);
-            g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                        "Invalid matcher '%s' in --usb-rule '%s'", parts[i], rule);
-            g_strfreev(parts);
-            return FALSE;
-        }
-
-        key = g_strstrip(kv[0]);
-        value = g_strstrip(kv[1]);
-
-        if (g_ascii_strcasecmp(key, "class") == 0 ||
-            g_ascii_strcasecmp(key, "cls") == 0) {
-            guint cls;
-
-            if (!usb_class_from_token(value, &cls)) {
-                g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                            "Unknown USB class token '%s'", value);
-                g_strfreev(kv);
-                g_strfreev(parts);
-                return FALSE;
-            }
-            *klass = (gint)cls;
-            matched_fields++;
-        } else if (g_ascii_strcasecmp(key, "vid") == 0 ||
-                   g_ascii_strcasecmp(key, "vendor") == 0 ||
-                   g_ascii_strcasecmp(key, "vendor-id") == 0) {
-            if (!usb_parse_match_number(value, 0xffff, vid)) {
-                g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                            "Invalid USB VID '%s'", value);
-                g_strfreev(kv);
-                g_strfreev(parts);
-                return FALSE;
-            }
-            matched_fields++;
-        } else if (g_ascii_strcasecmp(key, "pid") == 0 ||
-                   g_ascii_strcasecmp(key, "product") == 0 ||
-                   g_ascii_strcasecmp(key, "product-id") == 0) {
-            if (!usb_parse_match_number(value, 0xffff, pid)) {
-                g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                            "Invalid USB PID '%s'", value);
-                g_strfreev(kv);
-                g_strfreev(parts);
-                return FALSE;
-            }
-            matched_fields++;
-        } else if (g_ascii_strcasecmp(key, "bcd") == 0 ||
-                   g_ascii_strcasecmp(key, "version") == 0) {
-            if (!usb_parse_match_number(value, 0xffff, bcd)) {
-                g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                            "Invalid USB bcdDevice '%s'", value);
-                g_strfreev(kv);
-                g_strfreev(parts);
-                return FALSE;
-            }
-            matched_fields++;
-        } else {
-            g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                        "Unknown USB matcher '%s'", key);
-            g_strfreev(kv);
-            g_strfreev(parts);
-            return FALSE;
-        }
-
-        g_strfreev(kv);
-    }
-
-    g_strfreev(parts);
-
-    if (matched_fields == 0) {
-        g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                    "Rule '%s' does not contain any supported matcher", rule);
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static void
-usb_filter_append_tuple(GString *s,
-                        gint klass,
-                        gint vid,
-                        gint pid,
-                        gint bcd,
-                        gint allow)
-{
-    if (s->len) {
-        g_string_append_c(s, '|');
-    }
-
-    g_string_append_printf(s, "%d,%d,%d,%d,%d",
-                           klass, vid, pid, bcd, allow);
-}
-
-static void
-append_builtin_usb_deny_rules(GString *s)
-{
-    /*
-     * Built-in system USB blacklist.
-     *
-     * These classes are blocked before user policy rules are evaluated,
-     * so they remain denied even when --usb-default-action=allow is used.
-     */
-
-    /* Wireless Controller: Bluetooth and similar wireless USB devices. */
-    usb_filter_append_tuple(s, 0xe0, -1, -1, -1, 0);
-
-    /* CDC / Communications: modems, network-like and control interfaces. */
-    usb_filter_append_tuple(s, 0x02, -1, -1, -1, 0);
-
-    /* CDC Data: data interfaces for CDC/network/modem-like devices. */
-    usb_filter_append_tuple(s, 0x0a, -1, -1, -1, 0);
-}
-
 static gchar *
-build_usb_filter_string(const gchar *policy, gboolean default_allow, GError **err)
+build_usb_filter_string(const gchar *spec, gboolean default_allow, GError **err)
 {
-    GString *s;
-    gboolean allow_mode;
-    gchar **tokens;
-    int i;
-
-    if (!policy || !*policy) {
+    if (spec == NULL || *spec == '\0') {
         return NULL;
     }
 
-    if (g_str_has_prefix(policy, "raw:")) {
-        return g_strdup(policy + 4);
+    if (g_str_has_prefix(spec, "raw:")) {
+        return g_strdup(spec + 4);
     }
 
-    if (g_str_has_prefix(policy, "block:")) {
-        allow_mode = FALSE;
-        policy += strlen("block:");
-    } else if (g_str_has_prefix(policy, "allow:")) {
+    gboolean allow_mode = FALSE;
+    gboolean block_mode = FALSE;
+    const gchar *list = spec;
+
+    if (g_str_has_prefix(spec, "block:")) {
+        block_mode = TRUE;
+        list = spec + 6;
+    } else if (g_str_has_prefix(spec, "allow:")) {
         allow_mode = TRUE;
-        policy += strlen("allow:");
+        list = spec + 6;
     } else {
         g_set_error(err, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                    "Expected raw:, block: or allow:");
+                    "usb-policy must start with raw:, block: or allow:");
         return NULL;
     }
 
-    s = g_string_new(NULL);
-    tokens = g_strsplit(policy, ",", -1);
-    for (i = 0; tokens && tokens[i]; i++) {
-        gchar *tok = g_strstrip(tokens[i]);
+    (void)block_mode;
 
-        if (!tok || !*tok) {
+    GString *s = g_string_new(NULL);
+    gchar **tokens = g_strsplit(list, ",", -1);
+    for (gint i = 0; tokens && tokens[i]; i++) {
+        gchar *tok = g_strstrip(tokens[i]);
+        if (*tok == '\0') {
             continue;
         }
 
@@ -2882,287 +2640,21 @@ build_usb_filter_string(const gchar *policy, gboolean default_allow, GError **er
             return NULL;
         }
 
-        usb_filter_append_tuple(s, (gint)cls, -1, -1, -1, allow_mode ? 1 : 0);
+        gint rule_allow = allow_mode ? 1 : 0;
+
+        if (s->len) {
+            g_string_append_c(s, '|');
+        }
+        g_string_append_printf(s, "0x%02x,-1,-1,-1,%d", cls, rule_allow);
     }
     g_strfreev(tokens);
 
-    usb_filter_append_tuple(s, -1, -1, -1, -1, default_allow ? 1 : 0);
+    if (s->len) {
+        g_string_append_c(s, '|');
+    }
+    g_string_append_printf(s, "-1,-1,-1,-1,%d", default_allow ? 1 : 0);
 
     return g_string_free(s, FALSE);
-}
-
-static gchar *
-build_usb_manual_policy_filter(UsbPolicyAction default_action,
-                               GError **err)
-{
-    GString *s;
-    guint i;
-
-    s = g_string_new(NULL);
-
-    append_builtin_usb_deny_rules(s);
-
-    for (i = 0; usb_policy_rules && i < usb_policy_rules->len; i++) {
-        const gchar *rule = g_ptr_array_index(usb_policy_rules, i);
-        UsbPolicyAction action;
-        gint klass, vid, pid, bcd;
-
-        if (!usb_filter_tuple_from_rule(rule, &action, &klass, &vid, &pid, &bcd, err)) {
-            g_string_free(s, TRUE);
-            return NULL;
-        }
-
-        usb_filter_append_tuple(s, klass, vid, pid, bcd,
-                                usb_action_allow_for_policy(action));
-    }
-
-    usb_filter_append_tuple(s, -1, -1, -1, -1,
-                            usb_action_allow_for_policy(default_action));
-
-    return g_string_free(s, FALSE);
-}
-
-static gint
-usb_action_allow_for_auto_event(UsbPolicyAction rule_action,
-                                UsbPolicyAction event_action)
-{
-    if (rule_action == USB_RULE_DENY) {
-        return 0;
-    }
-
-    if (rule_action == USB_RULE_CONNECT) {
-        return 1;
-    }
-
-    return event_action == USB_RULE_CONNECT ? 1 : 0;
-}
-
-static gchar *
-build_usb_auto_policy_filter(UsbPolicyAction default_policy_action,
-                             UsbPolicyAction event_action,
-                             GError **err)
-{
-    GString *s;
-    guint i;
-
-    s = g_string_new(NULL);
-
-    append_builtin_usb_deny_rules(s);
-
-    for (i = 0; usb_policy_rules && i < usb_policy_rules->len; i++) {
-        const gchar *rule = g_ptr_array_index(usb_policy_rules, i);
-        UsbPolicyAction action;
-        gint klass, vid, pid, bcd;
-
-        if (!usb_filter_tuple_from_rule(rule, &action, &klass, &vid, &pid, &bcd, err)) {
-            g_string_free(s, TRUE);
-            return NULL;
-        }
-
-        usb_filter_append_tuple(s, klass, vid, pid, bcd,
-                                usb_action_allow_for_auto_event(action, event_action));
-    }
-
-    usb_filter_append_tuple(s, -1, -1, -1, -1,
-                            default_policy_action != USB_RULE_DENY &&
-                            event_action == USB_RULE_CONNECT ? 1 : 0);
-
-    return g_string_free(s, FALSE);
-}
-
-static gboolean
-usb_rule_option_cb(const gchar *option_name G_GNUC_UNUSED,
-                   const gchar *value,
-                   gpointer data G_GNUC_UNUSED,
-                   GError **error)
-{
-    UsbPolicyAction action;
-    gint klass, vid, pid, bcd;
-
-    if (!value || !*value) {
-        g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
-                    "--usb-rule requires a non-empty value");
-        return FALSE;
-    }
-
-    if (!usb_filter_tuple_from_rule(value, &action, &klass, &vid, &pid, &bcd, error)) {
-        return FALSE;
-    }
-
-    if (!usb_policy_rules) {
-        usb_policy_rules = g_ptr_array_new_with_free_func(g_free);
-    }
-
-    g_ptr_array_add(usb_policy_rules, g_strdup(value));
-    usb_policy_cli_active = TRUE;
-    return TRUE;
-}
-
-static gboolean
-usb_redirection_disabled(void)
-{
-    return usb_redirection &&
-           (g_ascii_strcasecmp(usb_redirection, "disabled") == 0 ||
-            g_ascii_strcasecmp(usb_redirection, "off") == 0 ||
-            g_ascii_strcasecmp(usb_redirection, "false") == 0 ||
-            g_ascii_strcasecmp(usb_redirection, "0") == 0);
-}
-
-static gboolean
-usb_redirection_enabled_value(void)
-{
-    return usb_redirection == NULL ||
-           g_ascii_strcasecmp(usb_redirection, "enabled") == 0 ||
-           g_ascii_strcasecmp(usb_redirection, "on") == 0 ||
-           g_ascii_strcasecmp(usb_redirection, "true") == 0 ||
-           g_ascii_strcasecmp(usb_redirection, "1") == 0;
-}
-
-static void
-apply_usb_policy_to_connection(spice_connection *conn)
-{
-    SpiceUsbDeviceManager *manager;
-    GError *e = NULL;
-    gboolean have_new_policy;
-    gboolean auto_usbredir = FALSE;
-    UsbPolicyAction default_action = USB_RULE_DENY;
-    UsbPolicyAction existing_action = USB_RULE_ALLOW;
-    UsbPolicyAction new_action = USB_RULE_ALLOW;
-    gchar *manual_filter = NULL;
-    gchar *new_filter = NULL;
-    gchar *existing_filter = NULL;
-
-    manager = spice_usb_device_manager_get(conn->session, NULL);
-    if (!manager) {
-        return;
-    }
-
-    have_new_policy = usb_redirection != NULL ||
-                      usb_existing_devices != NULL ||
-                      usb_new_devices != NULL ||
-                      usb_default_action != NULL ||
-                      (usb_policy_rules && usb_policy_rules->len > 0);
-
-    if (!have_new_policy && (!usb_policy || !*usb_policy)) {
-        return;
-    }
-
-    usb_policy_cli_active = TRUE;
-
-    if (usb_redirection && !usb_redirection_enabled_value() &&
-        !usb_redirection_disabled()) {
-        g_printerr("Invalid --usb-redirection: %s (use enabled or disabled)\\n",
-                   usb_redirection);
-        exit(2);
-    }
-
-    if (usb_redirection_disabled()) {
-        manual_filter = g_strdup("-1,-1,-1,-1,0");
-        new_filter = g_strdup("-1,-1,-1,-1,0");
-        existing_filter = g_strdup("-1,-1,-1,-1,0");
-        auto_usbredir = FALSE;
-    } else if (have_new_policy) {
-        if (usb_default_action &&
-            !parse_usb_mode(usb_default_action, &default_action, &e)) {
-            g_printerr("Invalid --usb-default-action: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        if (usb_existing_devices &&
-            !parse_usb_mode(usb_existing_devices, &existing_action, &e)) {
-            g_printerr("Invalid --usb-existing-devices: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        if (usb_new_devices &&
-            !parse_usb_mode(usb_new_devices, &new_action, &e)) {
-            g_printerr("Invalid --usb-new-devices: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        manual_filter = build_usb_manual_policy_filter(default_action, &e);
-        if (!manual_filter) {
-            g_printerr("Invalid --usb-rule: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        new_filter = build_usb_auto_policy_filter(default_action, new_action, &e);
-        if (!new_filter) {
-            g_printerr("Invalid --usb-rule/--usb-new-devices: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        existing_filter = build_usb_auto_policy_filter(default_action, existing_action, &e);
-        if (!existing_filter) {
-            g_printerr("Invalid --usb-rule/--usb-existing-devices: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        auto_usbredir = (new_action == USB_RULE_CONNECT ||
-                         existing_action == USB_RULE_CONNECT);
-        if (usb_policy_rules && usb_policy_rules->len > 0) {
-            guint i;
-
-            for (i = 0; i < usb_policy_rules->len; i++) {
-                const gchar *rule = g_ptr_array_index(usb_policy_rules, i);
-                UsbPolicyAction action;
-                const gchar *rest = NULL;
-
-                if (usb_parse_rule_action(rule, &action, &rest, NULL) &&
-                    action == USB_RULE_CONNECT) {
-                    auto_usbredir = TRUE;
-                    break;
-                }
-            }
-        }
-    } else {
-        gboolean def_allow = TRUE;
-
-        if (g_str_has_prefix(usb_policy, "allow:")) {
-            def_allow = FALSE;
-        }
-
-        manual_filter = build_usb_filter_string(usb_policy, def_allow, &e);
-        if (!manual_filter) {
-            g_printerr("Invalid --usb-policy: %s\\n",
-                       e ? e->message : "unknown error");
-            g_clear_error(&e);
-            exit(2);
-        }
-
-        new_filter = g_strdup(manual_filter);
-        existing_filter = g_strdup("-1,-1,-1,-1,0");
-        auto_usbredir = TRUE;
-    }
-
-    g_object_set(manager,
-                 "policy-filter", manual_filter,
-                 "auto-connect-filter", new_filter,
-                 "redirect-on-connect", existing_filter,
-                 NULL);
-    g_object_set(conn->gtk_session, "auto-usbredir", auto_usbredir, NULL);
-
-    SPICE_DEBUG("USB policy from CLI: manual=%s new=%s existing=%s auto-usbredir=%s",
-                manual_filter ? manual_filter : "(null)",
-                new_filter ? new_filter : "(null)",
-                existing_filter ? existing_filter : "(null)",
-                auto_usbredir ? "yes" : "no");
-
-    g_free(manual_filter);
-    g_free(new_filter);
-    g_free(existing_filter);
 }
 #endif /* USE_USBREDIR */
 
@@ -3185,7 +2677,32 @@ static spice_connection *connection_new(void)
 
     manager = spice_usb_device_manager_get(conn->session, NULL);
 #ifdef USE_USBREDIR
-    apply_usb_policy_to_connection(conn);
+    if (manager && usb_policy && *usb_policy) {
+        GError *e = NULL;
+        gboolean def_allow = TRUE;
+        if (g_str_has_prefix(usb_policy, "allow:")) {
+            def_allow = FALSE;
+        }
+        gchar *f = build_usb_filter_string(usb_policy, def_allow, &e);
+        if (!f) {
+            g_printerr("Invalid --usb-policy: %s\n", e ? e->message : "unknown error");
+            g_clear_error(&e);
+            exit(2);
+        }
+        /* policy-filter affects manual selection;
+         * auto-connect-filter only affects newly plugged devices when
+         * auto-usbredir is enabled.
+         *
+         * Do NOT set redirect-on-connect here: that property redirects
+         * already-present devices immediately on session connect, which is
+         * exactly the behaviour we want to avoid.
+         */
+        g_object_set(manager,
+                     "policy-filter", f,
+                     "auto-connect-filter", f,
+                     NULL);
+        g_free(f);
+    }
 #endif
     if (manager) {
         g_signal_connect(manager, "auto-connect-failed",
@@ -3256,42 +2773,29 @@ static GOptionEntry cmd_entries[] = {
         .description      = N_("Set the window title"),
         .arg_description  = N_("<title>"),
     },{
+        .long_name        = "monitors",
+        .short_name       = 'm',
+        .arg              = G_OPTION_ARG_INT,
+        .arg_data         = &requested_monitors,
+        .description      = N_("Number of guest monitors"),
+        .arg_description  = N_("<1-4>"),
+    },{
+        .long_name        = "clipboard-host-to-guest-only",
+        .arg              = G_OPTION_ARG_NONE,
+        .arg_data         = &clipboard_host_to_guest_only,
+        .description      = N_("Allow clipboard sharing only from host to guest"),
+    },{
+        .long_name        = "clipboard-guest-to-host-only",
+        .arg              = G_OPTION_ARG_NONE,
+        .arg_data         = &clipboard_guest_to_host_only,
+        .description      = N_("Allow clipboard sharing only from guest to host"),
+    },{
 #ifdef USE_USBREDIR
         .long_name        = "usb-policy",
         .arg              = G_OPTION_ARG_STRING,
         .arg_data         = &usb_policy,
-        .description      = N_("Legacy USB redirection policy. Use raw:<filter> or block:/allow: lists"),
+        .description      = N_("USB redirection policy (affects auto + manual). Use raw:<filter> or block:/allow: lists"),
         .arg_description  = N_("<raw:...|block:...|allow:...>"),
-    },{
-        .long_name        = "usb-redirection",
-        .arg              = G_OPTION_ARG_STRING,
-        .arg_data         = &usb_redirection,
-        .description      = N_("USB redirection master switch: enabled or disabled"),
-        .arg_description  = N_("enabled|disabled"),
-    },{
-        .long_name        = "usb-existing-devices",
-        .arg              = G_OPTION_ARG_STRING,
-        .arg_data         = &usb_existing_devices,
-        .description      = N_("Default action for USB devices already present when the SPICE session connects"),
-        .arg_description  = N_("deny|manual|connect"),
-    },{
-        .long_name        = "usb-new-devices",
-        .arg              = G_OPTION_ARG_STRING,
-        .arg_data         = &usb_new_devices,
-        .description      = N_("Default action for newly plugged USB devices"),
-        .arg_description  = N_("deny|manual|connect"),
-    },{
-        .long_name        = "usb-default-action",
-        .arg              = G_OPTION_ARG_STRING,
-        .arg_data         = &usb_default_action,
-        .description      = N_("Default action for devices not matched by --usb-rule"),
-        .arg_description  = N_("deny|allow|connect"),
-    },{
-        .long_name        = "usb-rule",
-        .arg              = G_OPTION_ARG_CALLBACK,
-        .arg_data         = usb_rule_option_cb,
-        .description      = N_("USB policy rule: DENY/ALLOW/CONNECT with class, vid, pid and/or bcd matchers"),
-        .arg_description  = N_("ACTION: class=mass-storage|vid=0x1234 pid=0x5678"),
     },{
 #endif
         /* end of list */
@@ -3399,13 +2903,11 @@ int main(int argc, char *argv[])
     }
     g_option_context_free(context);
 
-#ifdef USE_USBREDIR
-    if (usb_policy || usb_redirection || usb_existing_devices ||
-        usb_new_devices || usb_default_action ||
-        (usb_policy_rules && usb_policy_rules->len > 0)) {
-        usb_policy_cli_active = TRUE;
+    if (requested_monitors < 1 || requested_monitors > MONITORID_MAX) {
+        g_printerr(_("invalid monitor count %d; expected a value from 1 to %d\n"),
+                   requested_monitors, MONITORID_MAX);
+        exit(1);
     }
-#endif
 
     if (version) {
         g_print(_("spicy " PACKAGE_VERSION "\n"));
@@ -3416,6 +2918,21 @@ int main(int argc, char *argv[])
 
     conn = connection_new();
     spice_set_session_option(conn->session);
+
+    if (clipboard_host_to_guest_only && clipboard_guest_to_host_only) {
+        g_printerr(_("Only one directional clipboard option may be specified\n"));
+        exit(1);
+    }
+
+    if (clipboard_host_to_guest_only) {
+        g_object_set(conn->gtk_session, "clipboard-policy", 2, NULL);
+        g_print("Clipboard policy: host-to-guest only\n");
+    } else if (clipboard_guest_to_host_only) {
+        g_object_set(conn->gtk_session, "clipboard-policy", 3, NULL);
+        g_print("Clipboard policy: guest-to-host only\n");
+    } else {
+        g_object_set(conn->gtk_session, "clipboard-policy", 0, NULL);
+    }
     spice_cmdline_session_setup(conn->session);
 
     g_object_get(conn->session,
@@ -3453,16 +2970,6 @@ int main(int argc, char *argv[])
     g_key_file_free(keyfile);
 
     g_free(spicy_title);
-#ifdef USE_USBREDIR
-    g_free(usb_policy);
-    g_free(usb_redirection);
-    g_free(usb_existing_devices);
-    g_free(usb_new_devices);
-    g_free(usb_default_action);
-    if (usb_policy_rules) {
-        g_ptr_array_unref(usb_policy_rules);
-    }
-#endif
 
     setup_terminal(true);
     gst_deinit();

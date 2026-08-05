@@ -4,9 +4,9 @@ set -e
 APP="/Applications/Gorizont-VS-VDI.app"
 SPICE="$APP/Contents/Resources/spice"
 FRAMEWORKS="$APP/Contents/Frameworks"
-SPICY_BIN="$SPICE/bin/spicy"
+SPICY_BIN="$SPICE/bin/gorizont-spicy"
 
-WRAPPER="/usr/local/bin/spicy"
+WRAPPER="/usr/local/bin/gorizont-spicy"
 SUDOERS_FILE="/etc/sudoers.d/gorizontvs-spicy"
 
 if [ ! -d "$APP" ]; then
@@ -18,7 +18,7 @@ if [ ! -x "$SPICY_BIN" ]; then
   exit 0
 fi
 
-echo "postinstall: install /usr/local/bin/spicy wrapper"
+echo "postinstall: install /usr/local/bin/gorizont-spicy wrapper"
 
 mkdir -p /usr/local/bin
 
@@ -29,10 +29,10 @@ set -e
 APP="/Applications/Gorizont-VS-VDI.app"
 SPICE="$APP/Contents/Resources/spice"
 FRAMEWORKS="$APP/Contents/Frameworks"
-SPICY_BIN="$SPICE/bin/spicy"
+SPICY_BIN="$SPICE/bin/gorizont-spicy"
 
 if [ ! -x "$SPICY_BIN" ]; then
-  echo "ERROR: bundled spicy not found: $SPICY_BIN" >&2
+  echo "ERROR: bundled gorizont-spicy not found: $SPICY_BIN" >&2
   exit 127
 fi
 

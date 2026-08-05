@@ -27,6 +27,11 @@ spice:
 	CXXFLAGS="-D_LIBCPP_HARDENING_MODE=none" meson setup $(BUILD_DIR) --prefix=$(PREFIX)  -Dcpp_std=gnu++17  -Dtests=false && \
 	ninja -C $(BUILD_DIR) install  
 
+phodav:
+	cd phodav-3.0 && \
+	meson setup $(BUILD_DIR) --prefix=$(PREFIX) -Dgtk_doc=disabled && \
+	ninja -C $(BUILD_DIR) install && \
+	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install 
 
 spice-gtk:
 	cd spice-gtk && \
@@ -35,10 +40,10 @@ spice-gtk:
 	ninja -C $(BUILD_DIR) && \
 	ninja -C $(BUILD_DIR) install && \
 	cd po && \
-	msgfmt ru.po -o spice-gtk.mo && \
+	msgfmt ru.po -o gorizont-spice-gtk.mo && \
 	cd .. && \
-	cp po/spice-gtk.mo build/po/ru/LC_MESSAGES/ && \
-	cp po/spice-gtk.mo ../build/spice/usr/share/locale/ru/LC_MESSAGES/ && \
+	cp po/gorizont-spice-gtk.mo build/po/ru/LC_MESSAGES/ && \
+	cp po/gorizont-spice-gtk.mo ../build/spice/usr/share/locale/ru/LC_MESSAGES/ && \
 	DESTDIR=$(DESTDIR) ninja -C $(BUILD_DIR) install
 
 

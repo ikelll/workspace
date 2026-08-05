@@ -49,7 +49,7 @@ fi
 
 rsync -a "spice-full/build/spice/opt/homebrew/" "$SPICE_DST/"
 
-test -x "$SPICE_DST/bin/spicy"
+test -x "$SPICE_DST/bin/gorizont-spicy"
 
 echo "==> Copy usb.ids"
 
@@ -170,11 +170,11 @@ fi
 
 echo "==> Verify custom Russian spice-gtk translation"
 
-if [ -f "$SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo" ]; then
+if [ -f "$SPICE_DST/share/locale/ru/LC_MESSAGES/gorizont-spice-gtk.mo" ]; then
   echo "OK: custom spice-gtk.mo bundled"
-  ls -lh "$SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo"
+  ls -lh "$SPICE_DST/share/locale/ru/LC_MESSAGES/gorizont-spice-gtk.mo"
 else
-  echo "WARNING: custom spice-gtk.mo not found"
+  echo "WARNING: custom gorizont-spice-gtk.mo not found"
   echo "Available locale files in spice build:"
   find spice-full/build/spice -path "*/share/locale/*" -type f | sort || true
 fi
@@ -252,15 +252,15 @@ echo "==> Remove LSEnvironment from Info.plist if exists"
 echo "==> Validate structure"
 
 test -x "$APP_MACOS_DIR/$APP_NAME"
-test -x "$SPICE_DST/bin/spicy"
+test -x "$SPICE_DST/bin/gorizont-spicy"
 test -x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
 
 if [ ! -f "$SPICE_DST/share/hwdata/usb.ids" ]; then
   echo "WARNING: $SPICE_DST/share/hwdata/usb.ids is missing"
 fi
 
-if [ ! -f "$SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo" ]; then
-  echo "WARNING: $SPICE_DST/share/locale/ru/LC_MESSAGES/spice-gtk.mo is missing"
+if [ ! -f "$SPICE_DST/share/locale/ru/LC_MESSAGES/gorizont-spice-gtk.mo" ]; then
+  echo "WARNING: $SPICE_DST/share/locale/ru/LC_MESSAGES/gorizont-spice-gtk.mo is missing"
 fi
 
 echo "==> Permissions"

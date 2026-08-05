@@ -208,7 +208,7 @@ jobs:
           echo "== SPICE locale output =="
           find spice-full/build/spice -path "*/share/locale/*" -type f | sort | tee build/debug/spice-locale-files.txt || true
 
-          test -x spice-full/build/spice/opt/homebrew/bin/spicy
+          test -x spice-full/build/spice/opt/homebrew/bin/gorizont-spicy
 
       - name: Build client app
         shell: bash
