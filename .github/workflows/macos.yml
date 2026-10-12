@@ -61,6 +61,7 @@ jobs:
             gst-plugins-good \
             gst-plugins-bad \
             gst-libav \
+            ccache \
             glib \
             pixman \
             gdk-pixbuf \
