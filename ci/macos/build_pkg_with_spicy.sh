@@ -333,6 +333,69 @@ if [ -e "$APP_MACOS_DIR/qt.conf" ]; then
   exit 1
 fi
 
+echo "==> Install native QML environment launcher"
+
+ORIGINAL_EXECUTABLE="$APP_MACOS_DIR/$APP_NAME"
+REAL_EXECUTABLE="$APP_MACOS_DIR/${APP_NAME}.bin"
+LAUNCHER_SOURCE="$ROOT_DIR/build/debug/gorizont-qml-launcher.c"
+
+if [ -e "$REAL_EXECUTABLE" ]; then
+  echo "ERROR: launcher target already exists: $REAL_EXECUTABLE" >&2
+  exit 1
+fi
+
+mv "$ORIGINAL_EXECUTABLE" "$REAL_EXECUTABLE"
+
+cat > "$LAUNCHER_SOURCE" <<'C_SOURCE'
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <mach-o/dyld.h>
+
+int main(int argc, char **argv) {
+    (void)argc;
+    char executable[PATH_MAX];
+    uint32_t size = sizeof(executable);
+    if (_NSGetExecutablePath(executable, &size) != 0) {
+        fprintf(stderr, "ERROR: executable path too long\n");
+        return 1;
+    }
+    char *slash = strrchr(executable, '/');
+    if (!slash) {
+        fprintf(stderr, "ERROR: invalid executable path\n");
+        return 1;
+    }
+    *slash = '\0';
+    char qml[PATH_MAX];
+    char target[PATH_MAX];
+    if (snprintf(qml, sizeof(qml), "%s/../Resources/PySide6/qml", executable) >= (int)sizeof(qml) ||
+        snprintf(target, sizeof(target), "%s/Gorizont-VS-VDI.bin", executable) >= (int)sizeof(target)) {
+        fprintf(stderr, "ERROR: application path too long\n");
+        return 1;
+    }
+    if (access(qml, R_OK) != 0 || access(target, X_OK) != 0) {
+        fprintf(stderr, "ERROR: QML resources or application executable missing\n");
+        return 1;
+    }
+    if (setenv("QML_IMPORT_PATH", qml, 1) != 0 ||
+        setenv("QML2_IMPORT_PATH", qml, 1) != 0) {
+        perror("setenv");
+        return 1;
+    }
+    argv[0] = target;
+    execv(target, argv);
+    perror("execv");
+    return 1;
+}
+C_SOURCE
+
+clang -O2 -mmacosx-version-min="$DEPLOY_TARGET" \
+  "$LAUNCHER_SOURCE" -o "$ORIGINAL_EXECUTABLE"
+chmod +x "$ORIGINAL_EXECUTABLE" "$REAL_EXECUTABLE"
+
 echo "==> Sign standalone Mach-O files"
 
 is_framework_binary() {
