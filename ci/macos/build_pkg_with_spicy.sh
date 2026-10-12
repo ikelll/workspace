@@ -280,46 +280,70 @@ chmod +x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
 find "$SPICE_DST/bin" -type f -exec chmod +x {} + 2>/dev/null || true
 find "$SPICE_DST/libexec" -type f -exec chmod +x {} + 2>/dev/null || true
 
-echo "==> Remove stale signatures, xattrs, broken symlinks"
+echo "==> Remove stale signatures and extended attributes"
 
-find "$APP_DST" -name "_CodeSignature" -type d -prune -exec rm -rf {} \; 2>/dev/null || true
-find "$APP_DST" -xtype l -print -delete 2>/dev/null || true
+find "$APP_DST" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
+find "$APP_DST" -type l ! -exec test -e {} \; -print -delete
+xattr -cr "$APP_DST" || true
 
-find "$APP_DST" -type f -exec xattr -c {} + 2>/dev/null || true
-find "$APP_DST" -type d -exec xattr -c {} + 2>/dev/null || true
+echo "==> Remove Qt build artifacts"
 
-echo "==> Sign every Mach-O"
+QML_DIR="$APP_MACOS_DIR/PySide6/qml"
+if [ -d "$QML_DIR" ]; then
+  find "$QML_DIR" -type d \( -name 'objects-RelWithDebInfo' -o -name 'objects-Debug' -o -name 'objects-Release' \) -prune -exec rm -rf {} +
+  find "$QML_DIR" -type f \( -name 'qmldir' -o -name '*.qmltypes' -o -name '*.qml' -o -name '*.js' \) -exec chmod a-x {} +
+fi
 
-find "$APP_DST" -type f -print0 | while IFS= read -r -d '' f; do
-  if file "$f" 2>/dev/null | grep -q "Mach-O"; then
+echo "==> Sign standalone Mach-O files"
+
+is_framework_binary() {
+  local path="$1" parent
+  parent="$(dirname "$path")"
+  while [ "$parent" != "$APP_DST" ] && [ "$parent" != '/' ]; do
+    case "$parent" in
+      *.framework|*.bundle|*.xpc|*.appex|*.app) return 0 ;;
+    esac
+    parent="$(dirname "$parent")"
+  done
+  return 1
+}
+
+while IFS= read -r -d '' f; do
+  [ "$f" = "$APP_MACOS_DIR/$APP_NAME" ] && continue
+  if file -b "$f" | grep -q 'Mach-O'; then
+    if is_framework_binary "$f"; then
+      continue
+    fi
     echo "SIGN: $f"
-    chmod u+w "$f" || true
-    codesign --remove-signature "$f" 2>/dev/null || true
     codesign --force --sign - --timestamp=none "$f"
   fi
-done
+done < <(find "$APP_DST" -type f -print0)
+
+echo "==> Sign nested code bundles (deepest first)"
+
+while IFS= read -r bundle; do
+  echo "SIGN BUNDLE: $bundle"
+  codesign --force --sign - --timestamp=none "$bundle"
+done < <(
+  find "$APP_DST" -type d \( -name '*.framework' -o -name '*.bundle' -o -name '*.xpc' -o -name '*.appex' -o -name '*.app' \)     ! -path "$APP_DST" -print | awk '{ print length($0), $0 }' | sort -rn | cut -d' ' -f2-
+)
 
 echo "==> Sign app bundle"
-
-codesign --remove-signature "$APP_DST" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_DST"
 
 echo "==> Verify app bundle"
-
-codesign --verify --verbose=4 "$APP_DST"
+codesign --verify --strict --verbose=4 "$APP_DST"
 
 echo "==> Verify every Mach-O signature"
-
 bad_sign=0
-
-while IFS= read -r f; do
-  if file "$f" 2>/dev/null | grep -q "Mach-O"; then
+while IFS= read -r -d '' f; do
+  if file -b "$f" | grep -q 'Mach-O'; then
     if ! codesign --verify --verbose=1 "$f" >/dev/null 2>&1; then
       echo "BAD SIGN: $f"
       bad_sign=1
     fi
   fi
-done < <(find "$APP_DST" -type f -print)
+done < <(find "$APP_DST" -type f -print0)
 
 if [ "$bad_sign" -eq 1 ]; then
   echo "ERROR: some Mach-O files are not signed correctly"
@@ -384,3 +408,4 @@ productbuild \
 echo "==> Done"
 
 ls -lh "$FINAL_PKG"
+
