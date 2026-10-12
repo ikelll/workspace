@@ -120,7 +120,7 @@ jobs:
 
           mkdir -p build/debug
 
-          /opt/homebrew/bin/python3.13 -m venv venv
+          /opt/homebrew/bin/python3.11 -m venv venv
           source venv/bin/activate
 
           python -m pip install --upgrade pip setuptools wheel
@@ -184,7 +184,7 @@ jobs:
           export LDFLAGS="-L/opt/homebrew/lib"
           export MACOSX_DEPLOYMENT_TARGET="14.0"
           export PYTHON="/opt/homebrew/bin/python3"
-          export PYTHONPATH="$HOME/Library/Python/3.13/lib/python/site-packages:${PYTHONPATH:-}"
+          export PYTHONPATH="$HOME/Library/Python/3.11/lib/python/site-packages:${PYTHONPATH:-}"
 
           meson --version
           ninja --version

@@ -31,7 +31,7 @@ resolve_rpath_lib() {
     "$SPICE_DIR/lib" \
     "$SPICE_DIR/lib/gstreamer-1.0" \
     "/opt/homebrew/lib" \
-    "/opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13" \
+    "/opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11" \
     "/opt/homebrew/opt/openssl@3/lib" \
     "/opt/homebrew/opt/xz/lib" \
     "/opt/homebrew/opt/mpdecimal/lib" \
