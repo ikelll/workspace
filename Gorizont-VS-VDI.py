@@ -13,6 +13,9 @@ from src.qmlui import app as qml_app  # noqa: E402
 from src.transport import tools as tools_mod  # noqa: E402
 from src.transport import tunnel as tunnel_mod  # noqa: E402
 from src.utils.version import APP_VERSION  # noqa: E402
+from src.macos_runtime import setup_macos_bundle_environment
+setup_macos_bundle_environment()
+setup_logging()
 
 log = logging.getLogger(__name__)
 
