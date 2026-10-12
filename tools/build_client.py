@@ -269,7 +269,10 @@ def nuitka_command(mode: str, jobs: int, console: bool, onefile_cache: bool, ver
         ]
     else: 
         command += [
-            "--include-qt-plugins=" + ",".join(QT_PLUGIN_FAMILIES_EXTRA_LINUX),
+            "--include-qt-plugins=sensible,qml",
+            "--include-module=PySide6.QtQuickControls2",
+            "--include-module=PySide6.QtQuick",
+            "--include-module=PySide6.QtQml",
             "--macos-create-app-bundle",
             "--macos-app-name=" + APP_NAME,
             "--macos-app-version=" + numeric,
@@ -277,6 +280,32 @@ def nuitka_command(mode: str, jobs: int, console: bool, onefile_cache: bool, ver
             "--output-filename=" + APP_NAME,
         ]
     return command
+
+
+def ensure_macos_qml_controls(app_bundle: Path, source_qml: Path) -> None:
+    target_qml = app_bundle / "Contents" / "MacOS" / "PySide6" / "qml"
+    if not source_qml.is_dir():
+        raise SystemExit("[build] каталог QML PySide6 не найден: %s" % source_qml)
+    required = (
+        "QtQuick/Controls",
+        "QtQuick/Controls/Basic",
+        "QtQuick/Controls/Fusion",
+    )
+    for relative in required:
+        src = source_qml / relative
+        if not (src / "qmldir").is_file():
+            raise SystemExit("[build] отсутствует QML-модуль: %s" % src)
+        dst = target_qml / relative
+        if not dst.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(src, dst, symlinks=True, ignore=shutil.ignore_patterns(
+                "objects-RelWithDebInfo", "objects-Debug", "*.o", "*.cpp.o"))
+            log("QML-модуль добавлен: %s" % relative)
+    controls = target_qml / "QtQuick" / "Controls"
+    plugins = list(controls.glob("*qtquickcontrols2plugin*"))
+    if not plugins:
+        raise SystemExit("[build] отсутствует qtquickcontrols2plugin в %s" % controls)
+    log("QtQuick.Controls plugin: %s" % plugins[0])
 
 
 def build_output_paths(mode: str) -> Dict[str, Path]:
@@ -367,7 +396,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     version = read_version()
     if not args.no_resources and not args.dry_run:
         rebuild_resources()
-    if not args.no_prune:
+    if IS_MACOS and not args.no_prune:
+        log("macOS: очистка PySide6 отключена для сохранения QML-плагинов")
+    elif not args.no_prune:
         prune_pyside(paths, dry_run=args.dry_run)
 
     command = nuitka_command(args.mode, args.jobs, args.console, args.onefile_cache, version,
@@ -390,6 +421,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if not outputs["produced"].exists():
         raise SystemExit("[build] Nuitka не создала %s" % outputs["produced"])
+    if IS_MACOS:
+        ensure_macos_qml_controls(outputs["produced"], paths["qml"])
     publish(outputs["produced"], outputs["target"])
     report_size(outputs["target"])
     if not args.keep_build:
@@ -402,3 +435,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
