@@ -223,21 +223,21 @@ jobs:
 
           ./rebuild.sh
 
-          rm -rf dist
-          mkdir -p dist
+          rm -rf dist-mac
+          mkdir -p dist-mac
 
           # The spec uses the repository-relative venv/bin/python path.
           python tools/build_client.py
-          test -d "dist/Gorizont-VS-VDI.app"
-          test -x "dist/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI"
+          test -d "dist-mac/Gorizont-VS-VDI.app"
+          test -x "dist-mac/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI"
 
           mkdir -p build/debug
 
           echo "== DIST APP FILES =="
-          find dist/Gorizont-VS-VDI.app -maxdepth 5 -type f | sort | tee build/debug/dist-app-files.txt
+          find dist-mac/Gorizont-VS-VDI.app -maxdepth 5 -type f | sort | tee build/debug/dist-app-files.txt
 
           echo "== DIST MAIN BINARY =="
-          file dist/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI \
+          file dist-mac/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI \
             | tee build/debug/dist-main-binary-file.txt
 
       - name: Build PKG with SPICE
