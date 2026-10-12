@@ -16,37 +16,13 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_NAME = "Gorizont-VS-VDI"
 MAIN_FILE = ROOT / "Gorizont-VS-VDI.py"
 QML_SOURCES = ROOT / "src" / "qmlui" / "qml"
-BUILD_DIR = ROOT / "deployment"       
+BUILD_DIR = ROOT / "deployment"
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
 IS_LINUX = not IS_WINDOWS and not IS_MACOS
 
 RUNTIME_QML_MODULES = ("QtQuick.Controls.Fusion", "QtQuick.Controls.Basic")
-
-QT_PLUGIN_FAMILIES_EXCLUDED = ("printsupport", "egldeviceintegrations")
-QT_PLUGIN_FAMILIES_EXTRA_LINUX = ("platforminputcontexts",)  
-
-QT_PLUGIN_FILES_EXCLUDED = (
-    "imageformats/*qpdf*",
-    "platforminputcontexts/*virtualkeyboard*",
-    "platforms/*qeglfs*",
-    "platforms/*qlinuxfb*",
-    "platforms/*qminimalegl*",
-    "platforms/*qvkkhrdisplay*",
-    "platforms/*qvnc*",
-    "platforms/*qdirect2d*",
-)
-
-QT_LIBS_EXCLUDED = (
-    "*Qt6Pdf*", "*Qt6VirtualKeyboard*", "*Qt6WebEngine*", "*Qt6WebView*", "*Qt6Multimedia*",
-    "*Qt6Quick3D*", "*Qt63D*", "*Qt6Charts*", "*Qt6DataVisualization*", "*Qt6Graphs*",
-    "*Qt6Location*", "*Qt6Positioning*", "*Qt6Sensors*", "*Qt6RemoteObjects*", "*Qt6Scxml*",
-    "*Qt6TextToSpeech*", "*Qt6WebSockets*", "*Qt6WebChannel*", "*Qt6Core5Compat*", "*Qt6Designer*",
-    "*Qt6ShaderTools*", "*Qt6QuickControls2Material*", "*Qt6QuickControls2Universal*",
-    "*Qt6QuickControls2Imagine*", "*Qt6QuickControls2FluentWinUI3*", "*Qt6LabsStyleKit*",
-    "*libav*", "*libsw*", "*avcodec*", "*avformat*", "*avutil*", "*swresample*", "*swscale*",
-)
 
 IMPORT_RE = re.compile(r"^\s*import\s+([A-Za-z_][\w.]*)", re.M)
 
@@ -104,8 +80,8 @@ def read_version() -> str:
 
 
 def pyside_paths() -> Dict[str, Path]:
-    import PySide6  # noqa: WPS433  (импорт из venv сборки)
-    from PySide6.QtCore import QLibraryInfo  # type: ignore
+    import PySide6
+    from PySide6.QtCore import QLibraryInfo
 
     package = Path(PySide6.__file__).resolve().parent
     try:
@@ -113,8 +89,8 @@ def pyside_paths() -> Dict[str, Path]:
         qml = Path(QLibraryInfo.path(location.QmlImportsPath))
         plugins = Path(QLibraryInfo.path(location.PluginsPath))
     except AttributeError: 
-        qml = Path(QLibraryInfo.location(QLibraryInfo.Qml2ImportsPath))  # type: ignore[attr-defined]
-        plugins = Path(QLibraryInfo.location(QLibraryInfo.PluginsPath))  # type: ignore[attr-defined]
+        qml = Path(QLibraryInfo.location(QLibraryInfo.Qml2ImportsPath))
+        plugins = Path(QLibraryInfo.location(QLibraryInfo.PluginsPath))
     if not qml.is_dir():
         qml = package / "Qt" / "qml" if (package / "Qt" / "qml").is_dir() else package / "qml"
     if not plugins.is_dir():
@@ -138,82 +114,60 @@ def module_dir(qml_root: Path, name: str) -> Optional[Path]:
     return path if (path / "qmldir").is_file() else None
 
 
-def module_dependencies(qml_root: Path, name: str) -> Set[str]:
-    directory = module_dir(qml_root, name)
-    result: Set[str] = set()
-    if directory is None:
-        return result
-    for line in (directory / "qmldir").read_text(encoding="utf-8", errors="replace").splitlines():
-        parts = line.split()
-        if len(parts) >= 2 and parts[0] in ("import", "depends"):
-            result.add(parts[1])
-        elif len(parts) >= 3 and parts[0] == "default" and parts[1] == "import":
-            result.add(parts[2])
-    for path in list(directory.glob("*.qml")) + list(directory.glob("*.js")):
-        result.update(IMPORT_RE.findall(path.read_text(encoding="utf-8", errors="replace")))
-    return result
-
-
-def needed_qml_modules(qml_root: Path, sources: Path, extra: Iterable[str] = RUNTIME_QML_MODULES) -> Set[str]:
-    todo = list(qml_imports_of(sources) | set(extra))
-    seen: Set[str] = set()
-    while todo:
-        name = todo.pop()
-        if name in seen:
-            continue
-        seen.add(name)
-        todo.extend(dep for dep in module_dependencies(qml_root, name) if dep not in seen)
-    return {name for name in seen if module_dir(qml_root, name) is not None}
-
-
-def prune_qml_dir(qml_root: Path, keep_modules: Iterable[str], dry_run: bool = False) -> List[Path]:
-    keep = {Path(*name.split(".")).as_posix() for name in keep_modules}
-    removed: List[Path] = []
-
-    def visit(directory: Path) -> None:
-        for entry in sorted(directory.iterdir()):
-            if not entry.is_dir():
-                continue
-            rel = entry.relative_to(qml_root).as_posix()
-            if rel in keep or any(k.startswith(rel + "/") for k in keep):
-                visit(entry)     
-                continue
-            removed.append(entry)
-            if not dry_run:
-                shutil.rmtree(entry)
-
-    visit(qml_root)
-    return removed
-
-
-def prune_qt_plugins(plugins_root: Path, dry_run: bool = False) -> List[Path]:
-    removed: List[Path] = []
-    for pattern in QT_PLUGIN_FILES_EXCLUDED:
-        for path in plugins_root.glob(pattern):
-            removed.append(path)
-            if not dry_run:
-                if path.is_dir():
-                    shutil.rmtree(path)
-                else:
-                    path.unlink()
-    return removed
-
-
-def prune_pyside(paths: Dict[str, Path], dry_run: bool) -> None:
-    qml_root, plugins_root = paths["qml"], paths["plugins"]
-    app_imports = qml_imports_of(QML_SOURCES)
-    keep = needed_qml_modules(qml_root, QML_SOURCES)
-    missing = sorted(name for name in app_imports if module_dir(qml_root, name) is None
-                     and name.split(".")[0].startswith("Qt"))
+def validate_source_qml(paths: Dict[str, Path]) -> None:
+    if not QML_SOURCES.is_dir():
+        raise SystemExit("[build] не найден каталог QML: %s" % QML_SOURCES)
+    required = qml_imports_of(QML_SOURCES) | set(RUNTIME_QML_MODULES)
+    required.update(("QtQml", "QtQuick", "QtQuick.Controls", "QtQuick.Layouts"))
+    missing = sorted(name for name in required if name.startswith("Qt")
+                     and module_dir(paths["qml"], name) is None)
     if missing:
-        raise SystemExit("[build] в установленном PySide6 нет QML-модулей, нужных клиенту: %s" % ", ".join(missing))
-    log("QML-модули, которые остаются (%d): %s" % (len(keep), ", ".join(sorted(keep))))
-    removed = prune_qml_dir(qml_root, keep, dry_run=dry_run)
-    log("%s QML-модулей/каталогов: %d (%s)" % ("удалено" if not dry_run else "будет удалено", len(removed),
-        ", ".join(p.relative_to(qml_root).as_posix() for p in removed[:12]) + (", …" if len(removed) > 12 else "")))
-    removed_plugins = prune_qt_plugins(plugins_root, dry_run=dry_run)
-    log("%s плагинов Qt: %s" % ("удалено" if not dry_run else "будет удалено",
-        ", ".join(p.relative_to(plugins_root).as_posix() for p in removed_plugins) or "—"))
+        raise SystemExit("[build] отсутствуют QML-модули PySide6: %s. "
+                         "Переустановите PySide6, PySide6-Essentials и PySide6-Addons "
+                         "одной версии в окружении сборки." % ", ".join(missing))
+    validate_qml_tree(paths["qml"], required)
+
+
+def validate_qml_tree(qml_root: Path, required: Iterable[str]) -> None:
+    for name in sorted(required):
+        if not name.startswith("Qt"):
+            continue
+        directory = module_dir(qml_root, name)
+        if directory is None:
+            raise SystemExit("[build] отсутствует QML-модуль %s в %s" % (name, qml_root))
+        for line in (directory / "qmldir").read_text(encoding="utf-8").splitlines():
+            parts = line.split("#", 1)[0].split()
+            if parts and parts[0] == "optional":
+                parts = parts[1:]
+            if len(parts) < 2 or parts[0] != "plugin":
+                continue
+            plugin = parts[1]
+            plugin_dir = directory / parts[2] if len(parts) > 2 else directory
+            candidates = (plugin_dir / (plugin + ".dll"),
+                          plugin_dir / ("lib" + plugin + ".so"),
+                          plugin_dir / (plugin + ".so"),
+                          plugin_dir / ("lib" + plugin + ".dylib"),
+                          plugin_dir / (plugin + ".dylib"))
+            if not any(path.is_file() for path in candidates):
+                raise SystemExit("[build] отсутствует QML-плагин %s (%s)" % (plugin, plugin_dir))
+
+
+def validate_output(mode: str, produced: Path) -> None:
+    tree = produced if produced.is_dir() else BUILD_DIR / (MAIN_FILE.stem + ".dist")
+    if not tree.is_dir():
+        raise SystemExit("[build] нет каталога для проверки QML: %s" % tree)
+    roots = sorted({p.parent.parent for p in tree.rglob("qmldir")
+                    if p.parent.name == "QtQuick"})
+    required = qml_imports_of(QML_SOURCES) | set(RUNTIME_QML_MODULES)
+    required.update(("QtQml", "QtQuick", "QtQuick.Controls", "QtQuick.Layouts"))
+    if not roots:
+        raise SystemExit("[build] Nuitka не включила QML-модули в %s" % tree)
+    for root in roots:
+        validate_qml_tree(root, required)
+    platform_plugin = "qcocoa" if IS_MACOS else "qwindows" if IS_WINDOWS else "qxcb"
+    if not any(p.is_file() and platform_plugin in p.name for p in tree.rglob("*")):
+        raise SystemExit("[build] отсутствует платформенный плагин %s" % platform_plugin)
+    log("проверка QML-модулей и плагинов пройдена")
 
 
 def rebuild_resources() -> None:
@@ -234,7 +188,12 @@ def nuitka_command(mode: str, jobs: int, console: bool, onefile_cache: bool, ver
         "--jobs=%d" % max(1, jobs),
         "--output-dir=" + str(BUILD_DIR),
         "--noinclude-qt-translations",
-        "--noinclude-qt-plugins=" + ",".join(QT_PLUGIN_FAMILIES_EXCLUDED),
+        "--include-qt-plugins=sensible,qml",
+        "--include-module=PySide6.QtCore",
+        "--include-module=PySide6.QtGui",
+        "--include-module=PySide6.QtQml",
+        "--include-module=PySide6.QtQuick",
+        "--include-module=PySide6.QtQuickControls2",
         "--include-package=src",
         "--include-package=resources",
         "--include-module=PySide6.QtSvg",
@@ -248,11 +207,8 @@ def nuitka_command(mode: str, jobs: int, console: bool, onefile_cache: bool, ver
    
     command += optional_packages(("spnego",) + (("sspilib", "win32api", "win32crypt", "win32security", "win32con")
                                                if IS_WINDOWS else ("gssapi", "krb5")))
-    command += ["--noinclude-dlls=*.cpp.o", "--noinclude-dlls=*.o", "--noinclude-dlls=*.qsb"]
-    command += ["--noinclude-dlls=" + pattern for pattern in QT_LIBS_EXCLUDED]
-
     if IS_LINUX:
-        command += ["--include-qt-plugins=" + ",".join(QT_PLUGIN_FAMILIES_EXTRA_LINUX)]
+        command += ["--include-qt-plugins=" + "platforminputcontexts"]
         if system_openssl:
             command += ["--noinclude-dlls=libssl.so*", "--noinclude-dlls=libcrypto.so*"]
         if mode == "onefile":
@@ -269,7 +225,6 @@ def nuitka_command(mode: str, jobs: int, console: bool, onefile_cache: bool, ver
         ]
     else: 
         command += [
-            "--include-qt-plugins=" + ",".join(QT_PLUGIN_FAMILIES_EXTRA_LINUX),
             "--macos-create-app-bundle",
             "--macos-app-name=" + APP_NAME,
             "--macos-app-version=" + numeric,
@@ -333,9 +288,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                              "(Windows/macOS по умолчанию)")
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 2, help="параллельных компиляций C")
     parser.add_argument("--no-prune", action="store_true",
-                        help="не удалять лишние QML-модули и плагины из PySide6 в venv (сборка будет большой)")
+                        help="совместимость: очистка PySide6 всегда отключена")
     parser.add_argument("--force-prune", action="store_true",
-                        help="чистить PySide6, даже если интерпретатор не из venv")
+                        help="устаревший параметр; очистка PySide6 не выполняется")
     parser.add_argument("--no-resources", action="store_true", help="не пересобирать .qm и rc_resource.py")
     parser.add_argument("--console", action="store_true", help="Windows: собрать с окном консоли (отладка)")
     parser.add_argument("--onefile-cache", action="store_true",
@@ -350,16 +305,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         raise SystemExit("[build] нужен Python 3.9+")
     if not MAIN_FILE.is_file():
         raise SystemExit("[build] не найден %s" % MAIN_FILE)
-    in_venv = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
-    if not in_venv and not args.no_prune and not args.force_prune:
-        raise SystemExit("[build] %s — не venv. Чистка PySide6 изменила бы системную установку; запускайте сборку "
-                         "интерпретатором venv проекта либо укажите --no-prune (большая сборка) или --force-prune"
-                         % sys.executable)
-
+    if IS_MACOS and args.mode != "standalone":
+        raise SystemExit("[build] для macOS .app используйте --mode standalone")
+    if args.system_openssl and not IS_LINUX:
+        raise SystemExit("[build] --system-openssl поддерживается только на Linux")
+    if args.force_prune:
+        log("--force-prune устарел; установленный PySide6 не изменяется")
     paths = pyside_paths()
     log("Python %s, PySide6 %s (%s)" % (platform.python_version(), paths["version"], paths["package"]))
     try:
-        import nuitka  # noqa: F401
+        import nuitka
     except ImportError:
         raise SystemExit("[build] Nuitka не установлена в %s (pip install \"Nuitka>=2.7\" ordered-set zstandard%s)"
                          % (sys.executable, "" if IS_WINDOWS else " patchelf"))
@@ -367,8 +322,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     version = read_version()
     if not args.no_resources and not args.dry_run:
         rebuild_resources()
-    if not args.no_prune:
-        prune_pyside(paths, dry_run=args.dry_run)
+    validate_source_qml(paths)
 
     command = nuitka_command(args.mode, args.jobs, args.console, args.onefile_cache, version,
                              system_openssl=args.system_openssl)
@@ -390,6 +344,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if not outputs["produced"].exists():
         raise SystemExit("[build] Nuitka не создала %s" % outputs["produced"])
+    validate_output(args.mode, outputs["produced"])
     publish(outputs["produced"], outputs["target"])
     report_size(outputs["target"])
     if not args.keep_build:
