@@ -310,17 +310,27 @@ fi
 
 if [ -d "$QML_TARGET" ]; then
   echo "==> Configure Qt QML import path"
-  QT_CONF="$APP_MACOS_DIR/qt.conf"
+  QT_CONF="$APP_RESOURCES_DIR/qt.conf"
+  rm -f "$APP_MACOS_DIR/qt.conf"
   if [ -e "$QT_CONF" ]; then
-    echo "ERROR: Existing qt.conf must be reconciled before modifying Qt paths: $QT_CONF" >&2
+    echo "ERROR: Existing Resources/qt.conf must be reconciled: $QT_CONF" >&2
     cat "$QT_CONF" >&2
     exit 1
   fi
   cat > "$QT_CONF" <<'QTCONF'
 [Paths]
-QmlImports = ../Resources/PySide6/qml
-Qml2Imports = ../Resources/PySide6/qml
+Prefix = .
+QmlImports = PySide6/qml
+Qml2Imports = PySide6/qml
 QTCONF
+fi
+
+# Qt reads qt.conf from Contents/Resources for macOS application bundles.
+# Keep text configuration out of Contents/MacOS to avoid codesign treating
+# it as a nested code object.
+if [ -e "$APP_MACOS_DIR/qt.conf" ]; then
+  echo "ERROR: qt.conf remains in Contents/MacOS" >&2
+  exit 1
 fi
 
 echo "==> Sign standalone Mach-O files"
@@ -437,4 +447,3 @@ productbuild \
 echo "==> Done"
 
 ls -lh "$FINAL_PKG"
-
