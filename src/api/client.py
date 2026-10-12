@@ -47,6 +47,17 @@ class ApiClient(QObject):
         self._timeout_ms: int = 15_000
         self._ssl_dialog_parent: QObject | None = None
         self._ssl_trust_store = SslTrustStore()
+        self._active_replies: set[QNetworkReply] = set()
+        self._aborted_replies: set[QNetworkReply] = set()
+
+    def abort_pending(self) -> None:
+        replies = list(self._active_replies)
+        self._aborted_replies.update(replies)
+        for reply in replies:
+            try:
+                reply.abort()
+            except Exception:  # noqa: BLE001
+                log.debug("Abort failed", exc_info=True)
 
     def set_base_url(self, url: str) -> None:
         self._base_url = url.rstrip("/")
@@ -188,8 +199,7 @@ class ApiClient(QObject):
 
         request.setTransferTimeout(self._timeout_ms)
 
-        port = url.port(default_port_for_scheme(url.scheme()))
-        if self._ignore_ssl or self._ssl_trust_store.is_trusted(url.host(), port):
+        if self._ignore_ssl:
             ssl_cfg = QSslConfiguration.defaultConfiguration()
             ssl_cfg.setPeerVerifyMode(QSslSocket.PeerVerifyMode.VerifyNone)
             request.setSslConfiguration(ssl_cfg)
@@ -205,9 +215,15 @@ class ApiClient(QObject):
 
         reply.sslErrors.connect(lambda errors: self._handle_ssl_errors(reply, errors))
 
+        self._active_replies.add(reply)
+
         def _on_finished():
+            self._active_replies.discard(reply)
+            aborted = reply in self._aborted_replies
+            self._aborted_replies.discard(reply)
             try:
-                self._handle_reply(reply, on_success, on_error)
+                if not aborted:
+                    self._handle_reply(reply, on_success, on_error)
             finally:
                 reply.deleteLater()
 
@@ -222,9 +238,15 @@ class ApiClient(QObject):
 
         reply.sslErrors.connect(lambda errors: self._handle_ssl_errors(reply, errors))
 
+        self._active_replies.add(reply)
+
         def _on_finished():
+            self._active_replies.discard(reply)
+            aborted = reply in self._aborted_replies
+            self._aborted_replies.discard(reply)
             try:
-                self._handle_binary_reply(reply, on_success, on_error)
+                if not aborted:
+                    self._handle_binary_reply(reply, on_success, on_error)
             finally:
                 reply.deleteLater()
 
@@ -236,27 +258,56 @@ class ApiClient(QObject):
         host = url.host()
         port = url.port(default_port_for_scheme(url.scheme()))
 
-        if self._ignore_ssl or self._ssl_trust_store.is_trusted(host, port):
+        if self._ignore_ssl:
             reply.ignoreSslErrors()
             return
 
-        cert = None
-        if errors:
-            cert = errors[0].certificate()
+        der = self._peer_certificate_der(reply, errors)
+        if not der:
+            log.warning("TLS error without peer certificate for %s:%s; refusing", host, port)
+            return
 
-        cert_info = describe_der_certificate(
-            bytes(cert.toDer()) if cert is not None and not cert.isNull() else b"",
-            host=host,
-            port=port,
-        )
+        if self._ssl_trust_store.matches(host, port, der):
+            reply.ignoreSslErrors()
+            return
+
+        changed = bool(self._ssl_trust_store.get_fingerprint(host, port))
+        if changed:
+            log.warning("Pinned certificate for %s:%s has changed", host, port)
+        try:
+            cert_info = describe_der_certificate(der, host=host, port=port)
+        except Exception:  # noqa: BLE001
+            log.warning("Cannot parse peer certificate for %s:%s", host, port, exc_info=True)
+            return
         should_trust = confirm_certificate(
             typing.cast(Optional[QObject], self._ssl_dialog_parent),
             cert=cert_info,
             errors=[err.errorString() for err in errors],
+            changed=changed,
         )
         if should_trust:
             self._ssl_trust_store.remember(host, port, cert_info)
             reply.ignoreSslErrors()
+
+    @staticmethod
+    def _peer_certificate_der(reply: QNetworkReply, errors: list[QSslError]) -> bytes:
+        candidates = []
+        try:
+            candidates.append(reply.sslConfiguration().peerCertificate())
+        except Exception:  # noqa: BLE001
+            pass
+        candidates.extend(err.certificate() for err in errors or [])
+        for cert in candidates:
+            try:
+                if cert is None or cert.isNull():
+                    continue
+                der = cert.toDer()
+                raw = bytes(der.data() if hasattr(der, "data") else der)
+                if raw:
+                    return raw
+            except Exception:  # noqa: BLE001
+                continue
+        return b""
 
     def _handle_reply(
         self,

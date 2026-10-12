@@ -10,12 +10,15 @@ if (-not (Test-Path "venv\Scripts\python.exe")) {
 
 & "venv\Scripts\Activate.ps1"
 
-# UI files
-Get-ChildItem "ui" -Filter "*.ui" | ForEach-Object {
-    Write-Host "[UIC] $($_.FullName)"
-    pyside6-uic $_.FullName -o "ui\ui_$($_.BaseName).py"
-    if ($LASTEXITCODE -ne 0) { exit 1 }
-}
+# Translations
+Write-Host "[LUPDATE]"
+$qml = Get-ChildItem "src\qmlui\qml" -Recurse -Filter "*.qml" | ForEach-Object { $_.FullName }
+pyside6-lupdate Gorizont-VS-VDI.py src $qml -no-obsolete -ts i18n\ru_RU.ts i18n\en_US.ts
+if ($LASTEXITCODE -ne 0) { exit 1 }
+
+Write-Host "[LRELEASE]"
+pyside6-lrelease i18n\ru_RU.ts i18n\en_US.ts
+if ($LASTEXITCODE -ne 0) { exit 1 }
 
 # Resources
 if (Test-Path "resources\resource.qrc") {
@@ -23,14 +26,5 @@ if (Test-Path "resources\resource.qrc") {
     pyside6-rcc "resources\resource.qrc" -o "resources\rc_resource.py"
     if ($LASTEXITCODE -ne 0) { exit 1 }
 }
-
-# Translations
-Write-Host "[LUPDATE]"
-pyside6-lupdate Gorizont-VS-VDI.py src -ts i18n\ru_RU.ts i18n\en_US.ts
-if ($LASTEXITCODE -ne 0) { exit 1 }
-
-Write-Host "[LRELEASE]"
-pyside6-lrelease i18n\ru_RU.ts i18n\en_US.ts
-if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "Build complete."

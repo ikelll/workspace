@@ -227,8 +227,7 @@ jobs:
           mkdir -p dist
 
           # The spec uses the repository-relative venv/bin/python path.
-          pyside6-deploy -c pysidedeploy.mac.spec
-
+          python tools/build_client.py
           test -d "dist/Gorizont-VS-VDI.app"
           test -x "dist/Gorizont-VS-VDI.app/Contents/MacOS/Gorizont-VS-VDI"
 

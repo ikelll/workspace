@@ -12,6 +12,14 @@ from src.api import endpoints as ep
 
 log = logging.getLogger(__name__)
 
+
+def _to_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass
 class TransportInfo:
     id: str = ""
@@ -55,6 +63,9 @@ class ServiceInfo:
     status_label: str = ""
     status_detail: str = ""
     status_updated_at: str = ""
+    os_type: str = ""
+    os_type_name: str = ""
+    os_family: str = ""
 
     @property
     def is_available(self) -> bool:
@@ -109,6 +120,7 @@ class ServicesAPI(QObject):
     connect_ready = Signal(str, str)
     connect_error = Signal(str)
     action_done = Signal(str, str)
+    session_expired = Signal(str)
 
     def __init__(self, client: ApiClient, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -129,8 +141,16 @@ class ServicesAPI(QObject):
     def _on_services_ok(self, data: Any) -> None:
         try:
             log.debug("Parsing services response")
-            result = data.get("result", data) if isinstance(data, dict) else data
+            if not isinstance(data, dict):
+                log.warning("Services response is not a JSON object (type=%s)", type(data).__name__)
+                self.services_error.emit(
+                    QCoreApplication.translate("AuthService", "Unexpected server response")
+                )
+                return
+            result = data.get("result", data)
             raw_services = result.get("services", []) if isinstance(result, dict) else []
+            if not isinstance(raw_services, list):
+                raw_services = []
             log.debug("Raw services list: %d items", len(raw_services))
 
             self._services = []
@@ -156,6 +176,9 @@ class ServicesAPI(QObject):
 
     def _on_services_fail(self, msg: str, code: int) -> None:
         log.warning("Failed to fetch services: %s (status=%d)", msg, code)
+        if code in (401, 403):
+            self.session_expired.emit(translate_server_message("session expired"))
+            return
         self.services_error.emit(translate_server_message(msg))
 
     @staticmethod
@@ -186,17 +209,20 @@ class ServicesAPI(QObject):
         if not isinstance(raw, dict):
             return None
 
-        raw_group = raw.get("group", {})
+        raw_group = raw.get("group")
+        if not isinstance(raw_group, dict):
+            raw_group = {}
         group = ServiceGroup(
             id=str(raw_group.get("id", "")),
             name=str(raw_group.get("name", "")),
-            priority=int(raw_group.get("priority", 0)),
+            priority=_to_int(raw_group.get("priority", 0)),
             image_uuid=str(raw_group.get("imageUuid", "")),
         )
 
         transports = []
         transport_application_flags: list[bool] = []
-        for rt in raw.get("transports", []):
+        raw_transports = raw.get("transports")
+        for rt in raw_transports if isinstance(raw_transports, list) else []:
             if isinstance(rt, dict) and rt.get("id"):
                 transport_is_application = ServicesAPI._coerce_optional_bool(rt.get("is_application"))
                 if transport_is_application is not None:
@@ -205,7 +231,7 @@ class ServicesAPI(QObject):
                     id=str(rt.get("id", "")),
                     name=str(rt.get("name", "")),
                     link=str(rt.get("link", "")),
-                    priority=int(rt.get("priority", 0)),
+                    priority=_to_int(rt.get("priority", 0)),
                     is_application=transport_is_application,
                     transport_type=str(rt.get("type", "")),
                     application=rt.get("application"),
@@ -238,6 +264,9 @@ class ServicesAPI(QObject):
             status_label=ServicesAPI._clean_optional_text(raw.get("status_text")) or "",
             status_detail=ServicesAPI._clean_optional_text(raw.get("status_detail")) or "",
             status_updated_at=ServicesAPI._clean_optional_text(raw.get("status_updated_at")) or "",
+            os_type=ServicesAPI._clean_optional_text(raw.get("os_type")) or "",
+            os_type_name=ServicesAPI._clean_optional_text(raw.get("os_type_name")) or "",
+            os_family=ServicesAPI._clean_optional_text(raw.get("os_family")) or "",
         )
 
     def connect_service(self, service_id: str, transport_id: str) -> None:
@@ -267,8 +296,10 @@ class ServicesAPI(QObject):
         self._client.get(
             path,
             on_success=lambda _: self._on_action_ok(service_id, action),
-            on_error=lambda msg, code: self.connect_error.emit(
-                translate_server_message(msg)
+            on_error=lambda msg, code: (
+                self.session_expired.emit(translate_server_message("session expired"))
+                if code in (401, 403)
+                else self.connect_error.emit(translate_server_message(msg))
             ),
         )
 

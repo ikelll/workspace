@@ -169,8 +169,26 @@ class TestServicesAPISignals:
         api, _ = self._api()
         errors: list = []
         api.services_error.connect(errors.append)
-        api._on_services_fail("Invalid credentials", 401)
+        api._on_services_fail("Invalid credentials", 400)
         assert errors == ["Invalid username or password"]
+
+    def test_on_services_fail_401_emits_session_expired(self) -> None:
+        api, _ = self._api()
+        errors: list = []
+        expired: list = []
+        api.services_error.connect(errors.append)
+        api.session_expired.connect(expired.append)
+        api._on_services_fail("Unauthorized", 401)
+        assert errors == [] and len(expired) == 1
+
+    def test_on_services_ok_non_json_emits_error(self) -> None:
+        api, _ = self._api()
+        errors: list = []
+        ready: list = []
+        api.services_error.connect(errors.append)
+        api.services_ready.connect(ready.append)
+        api._on_services_ok("<html>proxy error</html>")
+        assert ready == [] and len(errors) == 1
 
     def test_connect_service_flow(self) -> None:
         api, client = self._api()
@@ -339,6 +357,8 @@ class TestApiClientSslErrors:
         c = ApiClient()
         c._ssl_trust_store = mock.MagicMock()
         c._ssl_trust_store.is_trusted.return_value = False
+        c._ssl_trust_store.matches.return_value = False
+        c._ssl_trust_store.get_fingerprint.return_value = ""
         reply = mock.MagicMock()
         reply.url.return_value = QUrl("https://h:443/x")
         err = mock.MagicMock()

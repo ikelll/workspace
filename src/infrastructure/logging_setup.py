@@ -14,11 +14,25 @@ _BACKUP_COUNT = 3
 _LOG_FILENAME = "GorizontVSClient.log"
 _APP_DIR_NAME = "GorizontVS"
 
+_SENSITIVE_KEYS = r"(password|passwd|[a-z_]*token|scrambler|X-Auth-Token|Authorization|ticket)"
 _SENSITIVE_PATTERNS = re.compile(
-    r"(password|passwd|token|scrambler|X-Auth-Token|Authorization)"
-    r"[\s:=]+['\"]?([^\s'\",:}{)\]]+)",
+    r"(?<![A-Za-z0-9])(['\"]?)" + _SENSITIVE_KEYS + r"\1(\s*[:=]\s*)"
+    r"(['\"]?)(?:(?:Bearer|Negotiate|Basic)\s+)?[^\s'\",}{)\]]+\4",
     re.IGNORECASE,
 )
+_CONNECTION_URL = re.compile(r"(/rest/connection/[^/\s]+/[^/\s]+/)[^/\s]+(/[^/\s]+)")
+
+_DEBUG_ENV = "GORIZONTVS_DEBUG"
+
+
+def redact(text: str) -> str:
+    text = _SENSITIVE_PATTERNS.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(1)}{m.group(3)}<REDACTED>", text)
+    return _CONNECTION_URL.sub(r"\1<REDACTED>\2", text)
+
+
+def _file_level() -> int:
+    value = os.environ.get(_DEBUG_ENV, "").strip().lower()
+    return logging.DEBUG if value in {"1", "true", "yes", "on"} else logging.INFO
 
 
 def _app_log_dir() -> Path:
@@ -43,13 +57,14 @@ class _SensitiveFilter(logging.Filter):
             except Exception:
                 pass
         if isinstance(record.msg, str):
-            record.msg = _SENSITIVE_PATTERNS.sub(r"\1=<REDACTED>", record.msg)
+            record.msg = redact(record.msg)
         return True
 
 
 def setup_logging() -> None:
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    level = _file_level()
+    root.setLevel(level)
 
     if any(isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers):
         return
@@ -57,8 +72,14 @@ def setup_logging() -> None:
     formatter = logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATE_FORMAT)
     sensitive_filter = _SensitiveFilter()
 
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if stream is not None and hasattr(stream, "reconfigure"):
+                stream.reconfigure(errors="backslashreplace")
+        except (ValueError, OSError, AttributeError):
+            pass
     console = logging.StreamHandler(sys.stdout)
-    console.setLevel(logging.DEBUG)
+    console.setLevel(level)
     console.setFormatter(formatter)
     console.addFilter(sensitive_filter)
     root.addHandler(console)
@@ -71,7 +92,7 @@ def setup_logging() -> None:
             backupCount=_BACKUP_COUNT,
             encoding="utf-8",
         )
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         file_handler.addFilter(sensitive_filter)
         root.addHandler(file_handler)
@@ -94,3 +115,10 @@ def _install_exception_hook() -> None:
         )
 
     sys.excepthook = _hook
+
+
+def log_file_path() -> str:
+    try:
+        return str(_app_log_dir() / _LOG_FILENAME)
+    except Exception:  # noqa: BLE001
+        return ""

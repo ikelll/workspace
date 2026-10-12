@@ -1,4 +1,4 @@
-PySide6
+PySide6_Essentials
 cryptography
 pyspnego
 gssapi; sys_platform != 'win32'

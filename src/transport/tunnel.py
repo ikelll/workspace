@@ -12,7 +12,15 @@ import typing
 import weakref
 
 from src.dialogs.app_dialogs import confirm_certificate
-from src.ssl_trust import SslTrustStore, fetch_certificate_info
+from src.ssl_trust import (
+    CertificateChangedError,
+    SslTrustStore,
+    connect_with_trust,
+    create_pinned_context,
+    create_verified_context,
+    fetch_certificate_info,
+    verify_pinned_peer,
+)
 from src.transport import consts as tc
 from src.transport.tools import get_cacerts_file
 from src.utils.types import ForwardState
@@ -21,10 +29,18 @@ log = logging.getLogger(__name__)
 _trust_store = SslTrustStore()
 
 _ACTIVE_FORWARD_SERVERS: weakref.WeakSet[ForwardServer] = weakref.WeakSet()
+_ACTIVE_LOCK = threading.Lock()
 
 
-def stop_all() -> None:
-    for fs in _ACTIVE_FORWARD_SERVERS:
+def take_all() -> list["ForwardServer"]:
+    with _ACTIVE_LOCK:
+        servers = list(_ACTIVE_FORWARD_SERVERS)
+        _ACTIVE_FORWARD_SERVERS.clear()
+    return servers
+
+
+def stop_servers(servers: typing.Iterable["ForwardServer"]) -> None:
+    for fs in servers:
         try:
             fs.stop()
             with contextlib.suppress(Exception):
@@ -34,6 +50,10 @@ def stop_all() -> None:
                 t.join(timeout=2)
         except Exception as e:
             log.debug("Error stopping tunnel: %s", e)
+
+
+def stop_all() -> None:
+    stop_servers(take_all())
 
 
 atexit.register(stop_all)
@@ -88,6 +108,7 @@ class ForwardServer(socketserver.ThreadingTCPServer):
         self.check_certificate = check_certificate
         self.keep_listening = keep_listening
         self.stop_flag = threading.Event()
+        self._state_lock = threading.RLock()
         self.current_connections = 0
         self.status = ForwardState.TUNNEL_LISTENING
         self.can_stop = False
@@ -99,25 +120,50 @@ class ForwardServer(socketserver.ThreadingTCPServer):
         self.timer.start()
 
         log.debug(
-            "ForwardServer: remote=%s ipv6=%s ticket=%s… cert=%s keep=%s timeout=%d",
+            "ForwardServer: remote=%s ipv6=%s cert=%s keep=%s timeout=%d",
             remote,
             self.remote_ipv6,
-            ticket[:8],
             check_certificate,
             keep_listening,
             timeout,
         )
 
     def stop(self) -> None:
-        if not self.stop_flag.is_set():
-            log.debug("Stopping ForwardServer %s", self.server_address)
+        with self._state_lock:
+            if self.stop_flag.is_set():
+                return
             self.stop_flag.set()
-            if self.timer:
-                self.timer.cancel()
-                self.timer = None
-            self.shutdown()
+            timer, self.timer = self.timer, None
+        log.debug("Stopping ForwardServer %s", self.server_address)
+        if timer:
+            timer.cancel()
+        serve_thread = getattr(self, "_thread", None)
+        if (
+            serve_thread is not None
+            and serve_thread.is_alive()
+            and threading.current_thread() is not serve_thread
+        ):
             with contextlib.suppress(Exception):
-                self.server_close()
+                self.shutdown()
+        with contextlib.suppress(Exception):
+            self.server_close()
+
+    def _acquire_connection(self) -> int:
+        with self._state_lock:
+            self.current_connections += 1
+            return self.current_connections
+
+    def _release_connection(self) -> int:
+        with self._state_lock:
+            self.current_connections -= 1
+            return self.current_connections
+
+    def _stop_if_idle(self) -> None:
+        with self._state_lock:
+            should_stop = self.current_connections <= 0 and self.can_stop
+        if should_stop:
+            log.info("No more connections — stopping server")
+            self.stop()
 
     @contextlib.contextmanager
     def connection(self) -> typing.Generator[ssl.SSLSocket, None, None]:
@@ -141,26 +187,14 @@ class ForwardServer(socketserver.ThreadingTCPServer):
 
     @contextlib.contextmanager
     def open_tunnel(self) -> typing.Generator[ssl.SSLSocket, None, None]:
-        self.current_connections += 1
-        log.debug(
-            "Opening tunnel ticket=%s… connections=%d",
-            self.ticket[:8],
-            self.current_connections,
-        )
+        count = self._acquire_connection()
+        log.debug("Opening tunnel connection (connections=%d)", count)
         try:
             with self.connection() as ssl_socket:
                 ForwardServer._open_tunnel(ssl_socket, self.ticket)
                 yield ssl_socket
-        except ssl.SSLError as e:
-            log.error("Certificate error → %s: %s", self.remote, e)
-            self.status = ForwardState.TUNNEL_ERROR
-            self.stop()
-        except Exception as e:
-            log.error("Tunnel error → %s: %s", self.remote, e)
-            self.status = ForwardState.TUNNEL_ERROR
-            self.stop()
         finally:
-            self.current_connections -= 1
+            self._release_connection()
 
     @property
     def stoppable(self) -> bool:
@@ -168,10 +202,10 @@ class ForwardServer(socketserver.ThreadingTCPServer):
 
     @staticmethod
     def _set_stoppable(fs: ForwardServer) -> None:
-        fs.timer = None
-        fs.can_stop = True
-        if fs.current_connections <= 0:
-            fs.stop()
+        with fs._state_lock:
+            fs.timer = None
+            fs.can_stop = True
+        fs._stop_if_idle()
 
     @staticmethod
     def _test(ssl_socket: ssl.SSLSocket) -> bool:
@@ -204,93 +238,90 @@ class ForwardServer(socketserver.ThreadingTCPServer):
         check_certificate: bool = True,
     ) -> ssl.SSLSocket:
         host, port = remote_addr
+        family = socket.AF_INET6 if use_ipv6 else socket.AF_INET
 
-        def _create_context() -> ssl.SSLContext:
-            context = ssl.create_default_context()
-            context.options |= ssl.OP_NO_COMPRESSION
-            context.minimum_version = ssl.TLSVersion.TLSv1_3
-
-            if not check_certificate:
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                return context
-
-            context.verify_mode = ssl.CERT_REQUIRED
-
-            cacerts = get_cacerts_file()
-            if cacerts is not None:
-                context.load_verify_locations(cacerts)
-
-            trusted_cert_pem = _trust_store.get_certificate_pem(host, port)
-            if trusted_cert_pem:
-                context.load_verify_locations(cadata=trusted_cert_pem)
-                context.check_hostname = False
-            else:
-                context.check_hostname = True
-
-            return context
-
-        def _wrap_socket() -> ssl.SSLSocket:
-            family = socket.AF_INET6 if use_ipv6 else socket.AF_INET
+        def _wrap(context: ssl.SSLContext) -> ssl.SSLSocket:
             rsocket = socket.socket(family, socket.SOCK_STREAM)
             try:
                 log.info("CONNECT to %s", remote_addr)
                 rsocket.connect(remote_addr)
                 rsocket.sendall(tc.HANDSHAKE_V1)
-
-                context = _create_context()
                 return context.wrap_socket(rsocket, server_hostname=host)
             except Exception:
                 rsocket.close()
                 raise
 
         if not check_certificate:
-            return _wrap_socket()
+            log.warning("Tunnel certificate verification disabled by transport for %s", remote_addr)
+            return _wrap(create_pinned_context(minimum_version=ssl.TLSVersion.TLSv1_3))
 
-        try:
-            return _wrap_socket()
-        except ssl.SSLCertVerificationError as exc:
-            cert = fetch_certificate_info(host, port, server_hostname=host)
-            should_trust = confirm_certificate(None, cert, [str(exc)])
-            if not should_trust:
+        def _verified() -> ssl.SSLSocket:
+            return _wrap(
+                create_verified_context(
+                    cafile=get_cacerts_file(),
+                    minimum_version=ssl.TLSVersion.TLSv1_3,
+                )
+            )
+
+        def _pinned(fingerprint: str) -> ssl.SSLSocket:
+            sock = _wrap(create_pinned_context(minimum_version=ssl.TLSVersion.TLSv1_3))
+            try:
+                verify_pinned_peer(sock, fingerprint)
+            except Exception:
+                sock.close()
                 raise
+            return sock
 
-            _trust_store.remember(host, port, cert)
-            return _wrap_socket()
+        return connect_with_trust(
+            host,
+            port,
+            _trust_store,
+            attempt_verified=_verified,
+            attempt_pinned=_pinned,
+            fetch_cert=lambda: fetch_certificate_info(
+                host, port, server_hostname=host, prefix=tc.HANDSHAKE_V1, family=family
+            ),
+            prompt=lambda cert, errors, changed: confirm_certificate(
+                None, cert, errors, changed=changed
+            ),
+        )
 
 
 class Handler(socketserver.BaseRequestHandler):
     server: ForwardServer  # type: ignore[assignment]
 
     def handle(self) -> None:
-        if self.server.status == ForwardState.TUNNEL_LISTENING:
-            self.server.status = ForwardState.TUNNEL_OPENING
+        server = self.server
+        with server._state_lock:
+            if server.status == ForwardState.TUNNEL_LISTENING:
+                server.status = ForwardState.TUNNEL_OPENING
+            reject = server.stoppable and not server.keep_listening
 
-        if self.server.stoppable and not self.server.keep_listening:
-            self.server.status = ForwardState.TUNNEL_ERROR
+        if reject:
             log.error("Rejected connection — timeout exceeded")
             self.request.close()
             return
 
         try:
-            with self.server.open_tunnel() as ssl_socket:
+            with server.open_tunnel() as ssl_socket:
                 self._relay(ssl_socket)
-        except ssl.SSLError as e:
-            log.error("SSL error: %s", e)
-            self.server.status = ForwardState.TUNNEL_ERROR
-            self.server.stop()
+        except (ssl.SSLCertVerificationError, CertificateChangedError) as e:
+            log.error("Tunnel certificate rejected → %s: %s", server.remote, e)
+            server.status = ForwardState.TUNNEL_ERROR
+            server.stop()
         except Exception as e:
-            log.error("Tunnel relay error: %s", e)
-            self.server.status = ForwardState.TUNNEL_ERROR
-            self.server.stop()
+            log.error("Tunnel connection error → %s: %s", server.remote, e)
+            with contextlib.suppress(Exception):
+                self.request.close()
+            if not server.keep_listening:
+                server.status = ForwardState.TUNNEL_ERROR
+                server.stop()
 
-        if self.server.current_connections <= 0 and self.server.stoppable:
-            log.info("No more connections — stopping server")
-            self.server.stop()
+        server._stop_if_idle()
 
     def _relay(self, remote: ssl.SSLSocket) -> None:
         self.server.status = ForwardState.TUNNEL_PROCESSING
-        log.debug("Relaying tunnel ticket=%s…", self.server.ticket[:8])
+        log.debug("Relaying tunnel connection")
         try:
             readables = [self.request, remote]
             while not self.server.stop_flag.is_set():
@@ -309,6 +340,11 @@ class Handler(socketserver.BaseRequestHandler):
                     if not data:
                         break
                     self.request.sendall(data)
+                    while remote.pending():
+                        data = remote.recv(tc.BUFFER_SIZE)
+                        if not data:
+                            return
+                        self.request.sendall(data)
         except Exception as e:
             log.info("Relay closed: %s", e)
         finally:
@@ -351,6 +387,7 @@ def forward(
         ipv6_remote=use_ipv6,
         keep_listening=keep_listening,
     )
-    _ACTIVE_FORWARD_SERVERS.add(fs)
+    with _ACTIVE_LOCK:
+        _ACTIVE_FORWARD_SERVERS.add(fs)
     _run(fs)
     return fs

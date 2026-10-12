@@ -4,6 +4,9 @@
         <file>static/login-bg.svg</file>
         <file>static/login-bg-white.svg</file>
         <file>static/login-bg-dark.svg</file>
+        <file>static/illustration.svg</file>
+        <file>static/main-bg-white.svg</file>
+        <file>static/main-bg-dark.svg</file>
         <file>static/app.ico</file>
         <file>static/app.icns</file>
         <file>static/logo.svg</file>
@@ -25,6 +28,9 @@
         <file>static/sun.svg</file>
         <file>static/transport.svg</file>
         <file>static/actions.svg</file>
+        <file>static/chevron-up.svg</file>
+        <file>static/chevron-down.svg</file>
+        <file>static/check.svg</file>
     </qresource>
     <qresource prefix="/fonts">
         <file>fonts/Montserrat-Black.ttf</file>
@@ -34,9 +40,70 @@
         <file>fonts/Montserrat-Regular.ttf</file>
         <file>fonts/Montserrat-SemiBold.ttf</file>
     </qresource>
-    <qresource prefix="/styles">
-        <file>styles.qss</file>
-        <file>styles_dark.qss</file>
+    <qresource prefix="/qml">
+        <file alias="Main.qml">../src/qmlui/qml/Main.qml</file>
+        <file alias="Components/ArtBadge.qml">../src/qmlui/qml/Components/ArtBadge.qml</file>
+        <file alias="Components/Artwork.qml">../src/qmlui/qml/Components/Artwork.qml</file>
+        <file alias="Components/ConnectButton.qml">../src/qmlui/qml/Components/ConnectButton.qml</file>
+        <file alias="Components/EmptyState.qml">../src/qmlui/qml/Components/EmptyState.qml</file>
+        <file alias="Components/FavoriteButton.qml">../src/qmlui/qml/Components/FavoriteButton.qml</file>
+        <file alias="Components/MenuRow.qml">../src/qmlui/qml/Components/MenuRow.qml</file>
+        <file alias="Components/MoreButton.qml">../src/qmlui/qml/Components/MoreButton.qml</file>
+        <file alias="Components/ProfileTile.qml">../src/qmlui/qml/Components/ProfileTile.qml</file>
+        <file alias="Components/ServiceCard.qml">../src/qmlui/qml/Components/ServiceCard.qml</file>
+        <file alias="Components/ServiceGrid.qml">../src/qmlui/qml/Components/ServiceGrid.qml</file>
+        <file alias="Components/ServiceImage.qml">../src/qmlui/qml/Components/ServiceImage.qml</file>
+        <file alias="Components/ServiceMenu.qml">../src/qmlui/qml/Components/ServiceMenu.qml</file>
+        <file alias="Components/ServiceRow.qml">../src/qmlui/qml/Components/ServiceRow.qml</file>
+        <file alias="Components/ServiceTile.qml">../src/qmlui/qml/Components/ServiceTile.qml</file>
+        <file alias="Components/ViewToggle.qml">../src/qmlui/qml/Components/ViewToggle.qml</file>
+        <file alias="Dialogs/AppDialog.qml">../src/qmlui/qml/Dialogs/AppDialog.qml</file>
+        <file alias="Dialogs/ConfirmDialog.qml">../src/qmlui/qml/Dialogs/ConfirmDialog.qml</file>
+        <file alias="Login/CredentialsPage.qml">../src/qmlui/qml/Login/CredentialsPage.qml</file>
+        <file alias="Login/LoginFrame.qml">../src/qmlui/qml/Login/LoginFrame.qml</file>
+        <file alias="Login/MfaSetupPage.qml">../src/qmlui/qml/Login/MfaSetupPage.qml</file>
+        <file alias="Login/MfaVerifyPage.qml">../src/qmlui/qml/Login/MfaVerifyPage.qml</file>
+        <file alias="Login/PasswordPage.qml">../src/qmlui/qml/Login/PasswordPage.qml</file>
+        <file alias="Login/ProfilesPage.qml">../src/qmlui/qml/Login/ProfilesPage.qml</file>
+        <file alias="Login/ServerPage.qml">../src/qmlui/qml/Login/ServerPage.qml</file>
+        <file alias="Pages/AboutPage.qml">../src/qmlui/qml/Pages/AboutPage.qml</file>
+        <file alias="Pages/AppsPage.qml">../src/qmlui/qml/Pages/AppsPage.qml</file>
+        <file alias="Pages/DesktopsPage.qml">../src/qmlui/qml/Pages/DesktopsPage.qml</file>
+        <file alias="Pages/FavoritesPage.qml">../src/qmlui/qml/Pages/FavoritesPage.qml</file>
+        <file alias="Pages/HomePage.qml">../src/qmlui/qml/Pages/HomePage.qml</file>
+        <file alias="Pages/ProfilePage.qml">../src/qmlui/qml/Pages/ProfilePage.qml</file>
+        <file alias="Pages/ResourcePage.qml">../src/qmlui/qml/Pages/ResourcePage.qml</file>
+        <file alias="Pages/SettingsPage.qml">../src/qmlui/qml/Pages/SettingsPage.qml</file>
+        <file alias="Pages/TransportPage.qml">../src/qmlui/qml/Pages/TransportPage.qml</file>
+        <file alias="Screens/LoadingScreen.qml">../src/qmlui/qml/Screens/LoadingScreen.qml</file>
+        <file alias="Screens/LoginScreen.qml">../src/qmlui/qml/Screens/LoginScreen.qml</file>
+        <file alias="Screens/MainScreen.qml">../src/qmlui/qml/Screens/MainScreen.qml</file>
+        <file alias="Ui/AppButton.qml">../src/qmlui/qml/Ui/AppButton.qml</file>
+        <file alias="Ui/AppCheckBox.qml">../src/qmlui/qml/Ui/AppCheckBox.qml</file>
+        <file alias="Ui/AppField.qml">../src/qmlui/qml/Ui/AppField.qml</file>
+        <file alias="Ui/AppSlider.qml">../src/qmlui/qml/Ui/AppSlider.qml</file>
+        <file alias="Ui/AppToggle.qml">../src/qmlui/qml/Ui/AppToggle.qml</file>
+        <file alias="Ui/Avatar.qml">../src/qmlui/qml/Ui/Avatar.qml</file>
+        <file alias="Ui/Brand.qml">../src/qmlui/qml/Ui/Brand.qml</file>
+        <file alias="Ui/Card.qml">../src/qmlui/qml/Ui/Card.qml</file>
+        <file alias="Ui/ChoiceChips.qml">../src/qmlui/qml/Ui/ChoiceChips.qml</file>
+        <file alias="Ui/CrispImage.qml">../src/qmlui/qml/Ui/CrispImage.qml</file>
+        <file alias="Ui/FormGrid.qml">../src/qmlui/qml/Ui/FormGrid.qml</file>
+        <file alias="Ui/Icon.qml">../src/qmlui/qml/Ui/Icon.qml</file>
+        <file alias="Ui/Icons.qml">../src/qmlui/qml/Ui/Icons.qml</file>
+        <file alias="Ui/KeyValueRow.qml">../src/qmlui/qml/Ui/KeyValueRow.qml</file>
+        <file alias="Ui/NavItem.qml">../src/qmlui/qml/Ui/NavItem.qml</file>
+        <file alias="Ui/Notice.qml">../src/qmlui/qml/Ui/Notice.qml</file>
+        <file alias="Ui/Notifications.qml">../src/qmlui/qml/Ui/Notifications.qml</file>
+        <file alias="Ui/PageScaffold.qml">../src/qmlui/qml/Ui/PageScaffold.qml</file>
+        <file alias="Ui/SectionHeading.qml">../src/qmlui/qml/Ui/SectionHeading.qml</file>
+        <file alias="Ui/SegmentedTabs.qml">../src/qmlui/qml/Ui/SegmentedTabs.qml</file>
+        <file alias="Ui/Sidebar.qml">../src/qmlui/qml/Ui/Sidebar.qml</file>
+        <file alias="Ui/Spinner.qml">../src/qmlui/qml/Ui/Spinner.qml</file>
+        <file alias="Ui/StatusPill.qml">../src/qmlui/qml/Ui/StatusPill.qml</file>
+        <file alias="Ui/Theme.qml">../src/qmlui/qml/Ui/Theme.qml</file>
+        <file alias="Ui/ToastHost.qml">../src/qmlui/qml/Ui/ToastHost.qml</file>
+        <file alias="Ui/qmldir">../src/qmlui/qml/Ui/qmldir</file>
     </qresource>
     <qresource prefix="/i18n">
         <file alias="en_US.qm">../i18n/en_US.qm</file>

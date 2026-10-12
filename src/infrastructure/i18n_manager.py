@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QObject, QSettings, QTranslator, Signal  # type: ignore
+from PySide6.QtCore import QCoreApplication, QObject, QSettings, QTranslator, Signal  # type: ignore
 from PySide6.QtWidgets import QApplication  # type: ignore
 
 import resources.rc_resource as _rc_resource  # noqa: F401
@@ -45,6 +45,11 @@ class I18nManager(QObject):
 
         log.info("Language changed to %s (qm loaded=%s)", normalized, loaded)
         self.language_changed.emit(normalized)
+
+    def unload(self) -> None:
+        app = QCoreApplication.instance()
+        if app is not None:
+            app.removeTranslator(self._translator)
 
     def toggle(self) -> None:
         self.load("en_US" if self._current.startswith("ru") else "ru_RU")

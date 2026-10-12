@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any, TYPE_CHECKING
 
 from PySide6.QtCore import QCoreApplication, QObject, Signal  # type: ignore
@@ -14,6 +15,16 @@ if TYPE_CHECKING:
     from src.auth.negotiate import NegotiateClient
 
 log = logging.getLogger(__name__)
+
+MAX_NEGOTIATE_ROUNDS = 10
+
+
+def client_platform() -> str:
+    if sys.platform == "darwin":
+        return "MacOsX"
+    if sys.platform.startswith("win"):
+        return "Windows"
+    return "Linux"
 
 
 class AuthService(QObject):
@@ -32,6 +43,7 @@ class AuthService(QObject):
         self._scrambler: str = ""
         self._username: str = ""
         self._negotiate_client: NegotiateClient | None = None
+        self._negotiate_rounds = 0
 
     @property
     def token(self) -> str:
@@ -61,14 +73,7 @@ class AuthService(QObject):
 
     def login(self, auth_id: str, username: str, password: str) -> None:
         self._username = username.strip()
-
-        import sys
-        if sys.platform == "darwin":
-            platform = "MacOsX"
-        elif sys.platform == "win32":
-            platform = "Windows"
-        else:
-            platform = "Linux"
+        platform = client_platform()
 
         body = {
             "auth_id": auth_id,
@@ -100,7 +105,9 @@ class AuthService(QObject):
             from src.auth.negotiate import NegotiateClient
         except Exception:
             log.exception("Negotiate backend is unavailable")
-            self.login_error.emit("Negotiate/Kerberos недоступен в этой сборке")
+            self.login_error.emit(
+                QCoreApplication.translate("AuthService", "Kerberos sign-in is not available in this build")
+            )
             return
 
         log.info(
@@ -121,20 +128,18 @@ class AuthService(QObject):
                 host = host_part.strip()
 
         if not host:
-            self.login_error.emit("Broker host is empty")
+            self.login_error.emit(QCoreApplication.translate("AuthService", "Broker host is empty"))
             return
 
-        self._negotiate_client = NegotiateClient(hostname=host, service=service)
+        try:
+            self._negotiate_client = NegotiateClient(hostname=host, service=service)
+        except Exception as exc:  # noqa: BLE001 - gssapi/spnego raise various types
+            log.warning("Cannot create Negotiate context: %s", exc)
+            self._negotiate_failed(exc)
+            return
 
-        import sys
-        if sys.platform == "darwin":
-            platform = "MacOsX"
-        elif sys.platform == "win32":
-            platform = "Windows"
-        else:
-            platform = "Linux"
-
-        self._run_negotiate_step(auth_id, "", "", platform)
+        self._negotiate_rounds = 0
+        self._run_negotiate_step(auth_id, "", "", client_platform())
 
     def logout(self) -> None:
         if not self._token:
@@ -163,11 +168,22 @@ class AuthService(QObject):
         platform: str,
     ) -> None:
         if self._negotiate_client is None:
-            self.login_error.emit("Negotiate client is not initialized")
+            self.login_error.emit(QCoreApplication.translate("AuthService", "Unexpected server response"))
             return
 
-        out_token_b64, _complete = self._negotiate_client.step(in_token_b64)
-        
+        self._negotiate_rounds += 1
+        if self._negotiate_rounds > MAX_NEGOTIATE_ROUNDS:
+            log.warning("Negotiate exceeded %d rounds", MAX_NEGOTIATE_ROUNDS)
+            self._negotiate_failed(RuntimeError("too many negotiate rounds"))
+            return
+
+        try:
+            out_token_b64, _complete = self._negotiate_client.step(in_token_b64)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Negotiate step failed: %s", exc)
+            self._negotiate_failed(exc)
+            return
+
         log.debug(
             "Negotiate step: auth_id=%s context_id=%s in_token_len=%d out_token_len=%d",
             auth_id,
@@ -188,10 +204,26 @@ class AuthService(QObject):
             on_error=self._on_login_fail,
         )
 
+    def _negotiate_failed(self, exc: BaseException) -> None:
+        del exc
+        self._negotiate_client = None
+        self.login_error.emit(
+            QCoreApplication.translate(
+                "AuthService",
+                "Automatic sign-in failed. Make sure you are signed in to the domain, "
+                "or enter your username and password.",
+            )
+        )
+
     def _on_login_negotiate_ok(self, data: Any, auth_id: str, platform: str) -> None:
-        log.debug("Negotiate response: %s", data)
+        log.debug(
+            "Negotiate response: result=%s keys=%s",
+            data.get("result") if isinstance(data, dict) else type(data).__name__,
+            sorted(data.keys()) if isinstance(data, dict) else [],
+        )
         if not isinstance(data, dict):
-            self.login_error.emit("Unexpected server response")
+            self._negotiate_client = None
+            self.login_error.emit(QCoreApplication.translate("AuthService", "Unexpected server response"))
             return
 
         result = str(data.get("result", ""))
@@ -220,7 +252,16 @@ class AuthService(QObject):
     def _on_auths_ok(self, data: Any) -> None:
         auths: list[dict] = []
 
-        items = data if isinstance(data, list) else data.get("result", [])
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = data.get("result", [])
+        else:
+            log.warning("Authenticators response is not JSON (type=%s)", type(data).__name__)
+            self.auth_error.emit(QCoreApplication.translate("AuthService", "Unexpected server response"))
+            return
+        if not isinstance(items, list):
+            items = []
 
         for item in items:
             if not isinstance(item, dict):
@@ -286,7 +327,7 @@ class AuthService(QObject):
         
         token = str(data.get("token", ""))
         if not token:
-            log.warning("Login response has result=ok but no token: %s", data)
+            log.warning("Login response has result=ok but no token: keys=%s", sorted(data.keys()))
             self.login_error.emit(QCoreApplication.translate("AuthService", "Server did not return an authorization token"))
             return
 

@@ -1,21 +1,17 @@
-"""Общие фикстуры для тестов.
-
-- Поднимает headless QCoreApplication (нужен многим модулям из-за QObject/Signal/QSettings).
-- Если в окружении нет gssapi (например, на CI без Kerberos), подставляет лёгкую заглушку,
-  чтобы модуль src.auth.negotiate можно было импортировать. Если настоящий gssapi есть —
-  заглушка не ставится.
-"""
 from __future__ import annotations
 
 import os
 import sys
+import tempfile
 import types
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-_app_dialogs_stub = types.ModuleType("src.dialogs.app_dialogs")
-_app_dialogs_stub.confirm_certificate = lambda *a, **k: False  # type: ignore[attr-defined]
-sys.modules["src.dialogs.app_dialogs"] = _app_dialogs_stub
+_ISOLATED_HOME = tempfile.mkdtemp(prefix="gvs-tests-")
+os.environ["XDG_CONFIG_HOME"] = os.path.join(_ISOLATED_HOME, "config")
+os.environ["XDG_DATA_HOME"] = os.path.join(_ISOLATED_HOME, "data")
+os.environ["LOCALAPPDATA"] = os.path.join(_ISOLATED_HOME, "localappdata")
+os.environ["GORIZONTVS_MULTI_INSTANCE"] = "1"
 
 if sys.platform != "win32":
     try:  # pragma: no cover
@@ -37,10 +33,27 @@ if sys.platform != "win32":
         sys.modules["gssapi"] = fake
 
 import pytest  # noqa: E402
-from PySide6.QtCore import QCoreApplication  # noqa: E402  # type: ignore
+from PySide6.QtCore import QCoreApplication, QSettings  # noqa: E402  # type: ignore
+
+QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+for _fmt in (QSettings.Format.NativeFormat, QSettings.Format.IniFormat):
+    QSettings.setPath(_fmt, QSettings.Scope.UserScope, os.path.join(_ISOLATED_HOME, "settings"))
+    QSettings.setPath(_fmt, QSettings.Scope.SystemScope, os.path.join(_ISOLATED_HOME, "settings-system"))
+
+
+@pytest.fixture(autouse=True)
+def _clean_trust_store():
+    settings = QSettings("Gorizont-VS", "VDIClient")
+    settings.remove("ssl")
+    settings.sync()
+    yield
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _qapp():
-    app = QCoreApplication.instance() or QCoreApplication([])
+    try:
+        from PySide6.QtWidgets import QApplication  # type: ignore
+        app = QCoreApplication.instance() or QApplication([])
+    except Exception:  # pragma: no cover
+        app = QCoreApplication.instance() or QCoreApplication([])
     yield app

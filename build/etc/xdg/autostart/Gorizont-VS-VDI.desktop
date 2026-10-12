@@ -9,4 +9,4 @@ Icon=/usr/share/Gorizont-VS-VDI/images/logo.png
 Terminal=false
 Categories=Network;
 StartupWMClass=Gorizont-VS-VDI
-MMimeType=x-scheme-handler/gorizontvs;x-scheme-handler/gorizontvss;
+MimeType=x-scheme-handler/gorizontvs;x-scheme-handler/gorizontvss;

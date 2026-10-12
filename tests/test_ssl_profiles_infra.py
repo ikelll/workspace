@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ssl
+
 import base64
 import logging
 import os
@@ -67,9 +69,17 @@ class TestSslTrustFunctions:
 
     def test_fetch_certificate_info(self) -> None:
         pem, _ = _make_cert()
-        with mock.patch("src.ssl_trust.ssl.get_server_certificate", return_value=pem):
-            info = ssl_trust.fetch_certificate_info("host", 0)
-            assert "test.example.com" in info.subject
+        der = ssl.PEM_cert_to_DER_cert(pem)
+        wrapped = mock.MagicMock()
+        wrapped.__enter__.return_value.getpeercert.return_value = der
+        ctx = mock.MagicMock()
+        ctx.wrap_socket.return_value = wrapped
+        with mock.patch("src.ssl_trust.socket.create_connection") as conn, mock.patch(
+            "src.ssl_trust.create_pinned_context", return_value=ctx
+        ):
+            info = ssl_trust.fetch_certificate_info("host", 0, prefix=b"HELLO")
+        assert "test.example.com" in info.subject
+        conn.return_value.sendall.assert_called_once_with(b"HELLO")
 
     def test_format_certificate_message(self) -> None:
         pem, _ = _make_cert()
@@ -98,7 +108,7 @@ class TestSslTrustStore:
         with mock.patch("src.ssl_trust.QSettings", return_value=settings):
             store = ssl_trust.SslTrustStore()
             store.remember("h", 0)
-            assert store.is_trusted("h", 443) is True
+            assert store.is_trusted("h", 443) is False
 
 
 class TestProfile:

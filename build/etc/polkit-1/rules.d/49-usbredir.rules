@@ -1,6 +1,13 @@
+// USB redirection for the Gorizont-VS SPICE client.
+// Only users of a local, active (foreground) session are allowed; remote and
+// inactive sessions fall back to the defaults of the policy file
+// (auth_admin_keep).  "org.spice-space.lowlevelusbaccess" is the action
+// checked by spice-client-glib-usb-acl-helper; the legacy id is kept for
+// compatibility with older helper builds.
 polkit.addRule(function(action, subject) {
-    if (action.id == "org.spice-space.usbredir.access") {
+    if ((action.id == "org.spice-space.lowlevelusbaccess" ||
+         action.id == "org.spice-space.usbredir.access") &&
+        subject.local && subject.active) {
         return polkit.Result.YES;
     }
 });
-

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from PySide6.QtCore import QSettings # type: ignore
+from src.transport_settings import TransportSettingsStore
 
 @dataclass
 class Profile:
@@ -13,7 +14,7 @@ class Profile:
     auth_id: str = ""
     auth_name: str = ""
     username: str = ""
-    login_method: str = "password"   # "password" | "negotiate"
+    login_method: str = "password"
     spn: str = ""
 
     @property
@@ -66,9 +67,17 @@ class ProfileManager:
 
     def __init__(self, settings: QSettings) -> None:
         self._s = settings
+        self._cache: list[Profile] | None = None
 
+    def _invalidate(self) -> None:
+        self._cache = None
 
     def load_all(self) -> list[Profile]:
+        if self._cache is None:
+            self._cache = self._read_all()
+        return [replace(p) for p in self._cache]
+
+    def _read_all(self) -> list[Profile]:
         n = self._s.beginReadArray(_ARR)
         out: list[Profile] = []
         for i in range(n):
@@ -91,6 +100,7 @@ class ProfileManager:
 
 
     def _save_all(self, profiles: list[Profile]) -> None:
+        self._invalidate()
         self._s.beginWriteArray(_ARR, len(profiles))
         for i, p in enumerate(profiles):
             self._s.setArrayIndex(i)
@@ -140,6 +150,7 @@ class ProfileManager:
     def delete(self, profile_id: str) -> None:
         items = [p for p in self.load_all() if p.id != profile_id]
         self._save_all(items)
+        TransportSettingsStore(self._s).remove_profile(profile_id)
         if self.get_last_used_id() == profile_id:
             self._s.remove(_LAST)
             self._s.sync()
