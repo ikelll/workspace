@@ -315,8 +315,13 @@ def build_output_paths(mode: str) -> Dict[str, Path]:
         dist = ROOT / "dist-mac"
     else:
         dist = ROOT / "dist-linux"
+
     stem = MAIN_FILE.stem
-    if IS_MACOS:
+
+    if IS_MACOS and mode == "onefile":
+        produced = BUILD_DIR / APP_NAME
+        target = dist / (APP_NAME + ".app")
+    elif IS_MACOS:
         produced = BUILD_DIR / (stem + ".app")
         target = dist / (APP_NAME + ".app")
     elif mode == "onefile":
@@ -325,6 +330,7 @@ def build_output_paths(mode: str) -> Dict[str, Path]:
     else:
         produced = BUILD_DIR / (stem + ".dist")
         target = dist / APP_NAME
+
     return {"dist": dist, "produced": produced, "target": target}
 
 
