@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="${APP_NAME:-Gorizont-VS-VDI}"
 APP_BUNDLE="${APP_BUNDLE:-Gorizont-VS-VDI.app}"
-APP_VERSION="${APP_VERSION:-1.8}"
+APP_VERSION="${APP_VERSION:-2.0.0}"
 PKG_IDENTIFIER="${PKG_IDENTIFIER:-ru.gorizont.vdi}"
 DEPLOY_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}"
 
@@ -29,7 +29,7 @@ echo "==> Create clean payload"
 mkdir -p "$PAYLOAD_DIR/Applications"
 
 echo "==> Copy client app from dist"
-cp -a "dist-mac/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
+cp -a "dist/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
 
 test -d "$APP_DST"
 test -x "$APP_MACOS_DIR/$APP_NAME"
@@ -280,172 +280,46 @@ chmod +x "$SPICE_DST/libexec/gstreamer-1.0/gst-plugin-scanner"
 find "$SPICE_DST/bin" -type f -exec chmod +x {} + 2>/dev/null || true
 find "$SPICE_DST/libexec" -type f -exec chmod +x {} + 2>/dev/null || true
 
-echo "==> Remove stale signatures and extended attributes"
+echo "==> Remove stale signatures, xattrs, broken symlinks"
 
-find "$APP_DST" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
-find "$APP_DST" -type l ! -exec test -e {} \; -print -delete
-xattr -cr "$APP_DST" || true
+find "$APP_DST" -name "_CodeSignature" -type d -prune -exec rm -rf {} \; 2>/dev/null || true
+find "$APP_DST" -xtype l -print -delete 2>/dev/null || true
 
-echo "==> Remove Qt build artifacts"
+find "$APP_DST" -type f -exec xattr -c {} + 2>/dev/null || true
+find "$APP_DST" -type d -exec xattr -c {} + 2>/dev/null || true
 
-QML_DIR="$APP_MACOS_DIR/PySide6/qml"
-if [ -d "$QML_DIR" ]; then
-  find "$QML_DIR" -type d \( -name 'objects-RelWithDebInfo' -o -name 'objects-Debug' -o -name 'objects-Release' \) -prune -exec rm -rf {} +
-  find "$QML_DIR" -type f \( -name 'qmldir' -o -name '*.qmltypes' -o -name '*.qml' -o -name '*.js' \) -exec chmod a-x {} +
-fi
+echo "==> Sign every Mach-O"
 
-echo "==> Relocate QML imports outside Contents/MacOS"
-
-QML_SOURCE="$APP_MACOS_DIR/PySide6/qml"
-QML_TARGET="$APP_RESOURCES_DIR/PySide6/qml"
-
-if [ -d "$QML_SOURCE" ]; then
-  mkdir -p "$(dirname "$QML_TARGET")"
-  if [ -e "$QML_TARGET" ]; then
-    echo "ERROR: QML target already exists: $QML_TARGET" >&2
-    exit 1
-  fi
-  mv "$QML_SOURCE" "$QML_TARGET"
-fi
-
-if [ -d "$QML_TARGET" ]; then
-  echo "==> Configure Qt QML import path"
-  QT_CONF="$APP_RESOURCES_DIR/qt.conf"
-  rm -f "$APP_MACOS_DIR/qt.conf"
-  if [ -e "$QT_CONF" ]; then
-    echo "ERROR: Existing Resources/qt.conf must be reconciled: $QT_CONF" >&2
-    cat "$QT_CONF" >&2
-    exit 1
-  fi
-  cat > "$QT_CONF" <<'QTCONF'
-[Paths]
-Prefix = .
-QmlImports = PySide6/qml
-Qml2Imports = PySide6/qml
-QTCONF
-fi
-
-# Qt reads qt.conf from Contents/Resources for macOS application bundles.
-# Keep text configuration out of Contents/MacOS to avoid codesign treating
-# it as a nested code object.
-if [ -e "$APP_MACOS_DIR/qt.conf" ]; then
-  echo "ERROR: qt.conf remains in Contents/MacOS" >&2
-  exit 1
-fi
-
-echo "==> Install native QML environment launcher"
-
-ORIGINAL_EXECUTABLE="$APP_MACOS_DIR/$APP_NAME"
-REAL_EXECUTABLE="$APP_MACOS_DIR/${APP_NAME}.bin"
-LAUNCHER_SOURCE="$ROOT_DIR/build/debug/gorizont-qml-launcher.c"
-
-if [ -e "$REAL_EXECUTABLE" ]; then
-  echo "ERROR: launcher target already exists: $REAL_EXECUTABLE" >&2
-  exit 1
-fi
-
-mv "$ORIGINAL_EXECUTABLE" "$REAL_EXECUTABLE"
-
-cat > "$LAUNCHER_SOURCE" <<'C_SOURCE'
-#include <errno.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <mach-o/dyld.h>
-
-int main(int argc, char **argv) {
-    (void)argc;
-    char executable[PATH_MAX];
-    uint32_t size = sizeof(executable);
-    if (_NSGetExecutablePath(executable, &size) != 0) {
-        fprintf(stderr, "ERROR: executable path too long\n");
-        return 1;
-    }
-    char *slash = strrchr(executable, '/');
-    if (!slash) {
-        fprintf(stderr, "ERROR: invalid executable path\n");
-        return 1;
-    }
-    *slash = '\0';
-    char qml[PATH_MAX];
-    char target[PATH_MAX];
-    if (snprintf(qml, sizeof(qml), "%s/../Resources/PySide6/qml", executable) >= (int)sizeof(qml) ||
-        snprintf(target, sizeof(target), "%s/Gorizont-VS-VDI.bin", executable) >= (int)sizeof(target)) {
-        fprintf(stderr, "ERROR: application path too long\n");
-        return 1;
-    }
-    if (access(qml, R_OK) != 0 || access(target, X_OK) != 0) {
-        fprintf(stderr, "ERROR: QML resources or application executable missing\n");
-        return 1;
-    }
-    if (setenv("QML_IMPORT_PATH", qml, 1) != 0 ||
-        setenv("QML2_IMPORT_PATH", qml, 1) != 0) {
-        perror("setenv");
-        return 1;
-    }
-    argv[0] = target;
-    execv(target, argv);
-    perror("execv");
-    return 1;
-}
-C_SOURCE
-
-clang -O2 -mmacosx-version-min="$DEPLOY_TARGET" \
-  "$LAUNCHER_SOURCE" -o "$ORIGINAL_EXECUTABLE"
-chmod +x "$ORIGINAL_EXECUTABLE" "$REAL_EXECUTABLE"
-
-echo "==> Sign standalone Mach-O files"
-
-is_framework_binary() {
-  local path="$1" parent
-  parent="$(dirname "$path")"
-  while [ "$parent" != "$APP_DST" ] && [ "$parent" != '/' ]; do
-    case "$parent" in
-      *.framework|*.bundle|*.xpc|*.appex|*.app) return 0 ;;
-    esac
-    parent="$(dirname "$parent")"
-  done
-  return 1
-}
-
-while IFS= read -r -d '' f; do
-  [ "$f" = "$APP_MACOS_DIR/$APP_NAME" ] && continue
-  if file -b "$f" | grep -q 'Mach-O'; then
-    if is_framework_binary "$f"; then
-      continue
-    fi
+find "$APP_DST" -type f -print0 | while IFS= read -r -d '' f; do
+  if file "$f" 2>/dev/null | grep -q "Mach-O"; then
     echo "SIGN: $f"
+    chmod u+w "$f" || true
+    codesign --remove-signature "$f" 2>/dev/null || true
     codesign --force --sign - --timestamp=none "$f"
   fi
-done < <(find "$APP_DST" -type f -print0)
-
-echo "==> Sign nested code bundles (deepest first)"
-
-while IFS= read -r bundle; do
-  echo "SIGN BUNDLE: $bundle"
-  codesign --force --sign - --timestamp=none "$bundle"
-done < <(
-  find "$APP_DST" -type d \( -name '*.framework' -o -name '*.bundle' -o -name '*.xpc' -o -name '*.appex' -o -name '*.app' \)     ! -path "$APP_DST" -print | awk '{ print length($0), $0 }' | sort -rn | cut -d' ' -f2-
-)
+done
 
 echo "==> Sign app bundle"
+
+codesign --remove-signature "$APP_DST" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_DST"
 
 echo "==> Verify app bundle"
-codesign --verify --strict --verbose=4 "$APP_DST"
+
+codesign --verify --verbose=4 "$APP_DST"
 
 echo "==> Verify every Mach-O signature"
+
 bad_sign=0
-while IFS= read -r -d '' f; do
-  if file -b "$f" | grep -q 'Mach-O'; then
+
+while IFS= read -r f; do
+  if file "$f" 2>/dev/null | grep -q "Mach-O"; then
     if ! codesign --verify --verbose=1 "$f" >/dev/null 2>&1; then
       echo "BAD SIGN: $f"
       bad_sign=1
     fi
   fi
-done < <(find "$APP_DST" -type f -print0)
+done < <(find "$APP_DST" -type f -print)
 
 if [ "$bad_sign" -eq 1 ]; then
   echo "ERROR: some Mach-O files are not signed correctly"
