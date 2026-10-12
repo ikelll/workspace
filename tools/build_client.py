@@ -356,7 +356,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Сборка клиента Gorizont-VS-VDI"
     )
-    default_mode = "standalone" if (IS_WINDOWS or IS_MACOS) else "onefile"
+    default_mode = "onefile"
     parser.add_argument("--mode", choices=("onefile", "standalone"), default=default_mode,
                         help="onefile — один исполняемый файл (Linux по умолчанию), standalone — каталог "
                              "(Windows/macOS по умолчанию)")
