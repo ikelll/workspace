@@ -126,7 +126,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
 
           pip install -r requirements.txt
-          pip install pyparsing krb5 "Nuitka==4.2.1" ordered-set zstandard imageio
+          pip install pyparsing krb5 "Nuitka==4.0.8" ordered-set zstandard imageio
 
           python --version | tee build/debug/python-version.txt
           pip --version | tee build/debug/pip-version.txt
