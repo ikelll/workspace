@@ -294,6 +294,35 @@ if [ -d "$QML_DIR" ]; then
   find "$QML_DIR" -type f \( -name 'qmldir' -o -name '*.qmltypes' -o -name '*.qml' -o -name '*.js' \) -exec chmod a-x {} +
 fi
 
+echo "==> Relocate QML imports outside Contents/MacOS"
+
+QML_SOURCE="$APP_MACOS_DIR/PySide6/qml"
+QML_TARGET="$APP_RESOURCES_DIR/PySide6/qml"
+
+if [ -d "$QML_SOURCE" ]; then
+  mkdir -p "$(dirname "$QML_TARGET")"
+  if [ -e "$QML_TARGET" ]; then
+    echo "ERROR: QML target already exists: $QML_TARGET" >&2
+    exit 1
+  fi
+  mv "$QML_SOURCE" "$QML_TARGET"
+fi
+
+if [ -d "$QML_TARGET" ]; then
+  echo "==> Configure Qt QML import path"
+  QT_CONF="$APP_MACOS_DIR/qt.conf"
+  if [ -e "$QT_CONF" ]; then
+    echo "ERROR: Existing qt.conf must be reconciled before modifying Qt paths: $QT_CONF" >&2
+    cat "$QT_CONF" >&2
+    exit 1
+  fi
+  cat > "$QT_CONF" <<'QTCONF'
+[Paths]
+QmlImports = ../Resources/PySide6/qml
+Qml2Imports = ../Resources/PySide6/qml
+QTCONF
+fi
+
 echo "==> Sign standalone Mach-O files"
 
 is_framework_binary() {
