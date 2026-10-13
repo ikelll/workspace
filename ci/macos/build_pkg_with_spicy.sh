@@ -29,10 +29,29 @@ echo "==> Create clean payload"
 mkdir -p "$PAYLOAD_DIR/Applications"
 
 echo "==> Copy client app from dist"
-cp -a "dist-mac/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
+SOURCE_APP="${SOURCE_APP:-$ROOT_DIR/dist-mac/$APP_BUNDLE}"
+if [ ! -d "$SOURCE_APP" ]; then
+  echo "ERROR: application bundle not found: $SOURCE_APP" >&2
+  exit 1
+fi
+cp -a "$SOURCE_APP" "$PAYLOAD_DIR/Applications/"
 
 test -d "$APP_DST"
 test -x "$APP_MACOS_DIR/$APP_NAME"
+
+if ! file "$APP_MACOS_DIR/$APP_NAME" | grep -q 'Mach-O'; then
+  echo "ERROR: main executable is not a Mach-O binary" >&2
+  exit 1
+fi
+
+if [ ! -f "$APP_DST/Contents/Info.plist" ]; then
+  echo "ERROR: missing Info.plist" >&2
+  exit 1
+fi
+
+if [ -d "$APP_MACOS_DIR/PySide6" ]; then
+  echo "WARNING: external PySide6 directory detected; verify the app was built in onefile mode" >&2
+fi
 
 echo "==> Prepare directories"
 mkdir -p "$APP_FRAMEWORKS_DIR"
@@ -249,9 +268,7 @@ PLIST="$APP_DST/Contents/Info.plist"
 
 echo "==> Remove LSEnvironment from Info.plist if exists"
 
-# Окружение теперь задаётся в macos_runtime.py.
-# Не держим в Info.plist старые абсолютные пути и /Users/ruslan.
-#/usr/libexec/PlistBuddy -c "Print :LSEnvironment" "$PLIST" 2>/dev/null || true
+# Do not embed developer-specific paths in the bundle.
 /usr/libexec/PlistBuddy -c "Delete :LSEnvironment" "$PLIST" 2>/dev/null || true
 
 echo "==> Validate structure"
@@ -312,14 +329,14 @@ echo "==> Verify every Mach-O signature"
 
 bad_sign=0
 
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   if file "$f" 2>/dev/null | grep -q "Mach-O"; then
     if ! codesign --verify --verbose=1 "$f" >/dev/null 2>&1; then
       echo "BAD SIGN: $f"
       bad_sign=1
     fi
   fi
-done < <(find "$APP_DST" -type f -print)
+done < <(find "$APP_DST" -type f -print0)
 
 if [ "$bad_sign" -eq 1 ]; then
   echo "ERROR: some Mach-O files are not signed correctly"
@@ -330,7 +347,7 @@ echo "==> Verify no /opt/homebrew references"
 
 bad_homebrew=0
 
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   if file "$f" 2>/dev/null | grep -q "Mach-O"; then
     if otool -L "$f" 2>/dev/null | grep -q "/opt/homebrew"; then
       echo "BAD HOMEBREW REF: $f"
@@ -338,7 +355,7 @@ while IFS= read -r f; do
       bad_homebrew=1
     fi
   fi
-done < <(find "$APP_DST" -type f -print)
+done < <(find "$APP_DST" -type f -print0)
 
 if [ "$bad_homebrew" -eq 1 ]; then
   echo "ERROR: unresolved /opt/homebrew references remained"
@@ -377,8 +394,23 @@ echo "==> Build final PKG"
 
 FINAL_PKG="$ROOT_DIR/build/Gorizont-VS-VDI-Client-Setup-${APP_VERSION}-arm64.pkg"
 
+INSTALLER_DIR="$ROOT_DIR/ci/macos/installer"
+INSTALLER_RESOURCES="$INSTALLER_DIR/resources"
+DISTRIBUTION="$ROOT_DIR/build/Distribution.xml"
+
+test -f "$INSTALLER_RESOURCES/welcome.html"
+test -f "$INSTALLER_RESOURCES/conclusion.html"
+test -f "$INSTALLER_RESOURCES/background.png"
+
+python3 "$INSTALLER_DIR/make_distribution.py" \
+  --identifier "$PKG_IDENTIFIER" \
+  --version "$APP_VERSION" \
+  --output "$DISTRIBUTION"
+
 productbuild \
-  --package "$ROOT_DIR/build/component.pkg" \
+  --distribution "$DISTRIBUTION" \
+  --resources "$INSTALLER_RESOURCES" \
+  --package-path "$ROOT_DIR/build" \
   "$FINAL_PKG"
 
 echo "==> Done"
