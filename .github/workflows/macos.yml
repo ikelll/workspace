@@ -9,7 +9,7 @@ on:
 env:
   APP_NAME: Gorizont-VS-VDI
   APP_BUNDLE: Gorizont-VS-VDI.app
-  APP_VERSION: "1.8"
+  APP_VERSION: "2.0.0"
   PKG_IDENTIFIER: ru.gorizont.vdi
   MACOSX_DEPLOYMENT_TARGET: "14.0"
 
