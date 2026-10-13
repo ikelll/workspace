@@ -29,7 +29,7 @@ echo "==> Create clean payload"
 mkdir -p "$PAYLOAD_DIR/Applications"
 
 echo "==> Copy client app from dist"
-cp -a "dist/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
+cp -a "dist-mac/$APP_BUNDLE" "$PAYLOAD_DIR/Applications/"
 
 test -d "$APP_DST"
 test -x "$APP_MACOS_DIR/$APP_NAME"
