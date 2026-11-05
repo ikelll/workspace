@@ -176,6 +176,7 @@ G_DEFINE_TYPE (SpiceWindow, spice_window, G_TYPE_OBJECT)
 
 #define CHANNELID_MAX 4
 #define MONITORID_MAX 4
+#define WIN_INDEX(channel_id, monitor_id) ((channel_id) * MONITORID_MAX + (monitor_id))
 
 
 // FIXME: turn this into an object, get rid of fixed wins array, use
@@ -190,6 +191,10 @@ struct spice_connection {
     const char       *agent_state;
     gboolean         agent_connected;
     gboolean         monitor_config_sent;
+    guint            monitor_config_timer;
+    /* Номера дисплеев, окна которых закрыл пользователь: пока идёт подключение,
+     * они не открываются снова, даже если гостевая ОС их ещё показывает. */
+    guint32          closed_displays;
     int              disconnecting;
 
     /* key: SpiceFileTransferTask, value: TransferTaskWidgets */
@@ -663,15 +668,34 @@ static void menu_cb_about(GtkAction *action, void *data)
                           NULL);
 }
 
+/* Главное окно — дисплей 0. У второго и следующих QXL-устройств (несколько
+ * каналов изображения, как на Windows) monitor_id тоже 0, поэтому одного
+ * monitor_id для этого мало. */
+static gboolean is_main_window(SpiceWindow *win)
+{
+    return win->id == 0 && win->monitor_id == 0;
+}
+
+/* Пользователь закрыл окно: главное закрывает подключение, остальные —
+ * только свой дисплей, который потом не открывается снова сам. */
+static void close_window_by_user(SpiceWindow *win)
+{
+    spice_connection *conn = win->conn;
+    guint display_id;
+
+    if (is_main_window(win)) {
+        connection_disconnect(conn);
+        return;
+    }
+    display_id = display_id_from_channel_monitor(win->id, win->monitor_id);
+    if (display_id < 32)
+        conn->closed_displays |= 1u << display_id;
+    del_window(conn, win);
+}
+
 static gboolean delete_cb(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
-    SpiceWindow *win = data;
-
-    if (win->monitor_id == 0)
-        connection_disconnect(win->conn);
-    else
-        del_window(win->conn, win);
-
+    close_window_by_user(data);
     return true;
 }
 
@@ -919,10 +943,7 @@ static void fs_overlay_btn_disconnect_clicked(GtkButton *btn G_GNUC_UNUSED, gpoi
     if (!win || win->destroying)
         return;
 
-    if (win->monitor_id == 0)
-        connection_disconnect(win->conn);
-    else
-        del_window(win->conn, win);
+    close_window_by_user(win);
 }
 
 static void fs_overlay_css_init(void)
@@ -1908,6 +1929,7 @@ static void main_channel_event(SpiceChannel *channel, SpiceChannelEvent event,
     case SPICE_CHANNEL_OPENED:
         g_message("main channel: opened");
         conn->monitor_config_sent = FALSE;
+        conn->closed_displays = 0;
         recent_add(conn->session);
         break;
     case SPICE_CHANNEL_SWITCHING:
@@ -2078,24 +2100,18 @@ static guint display_id_from_channel_monitor(gint channel_id, gint monitor_id)
     return (guint)channel_id;
 }
 
-typedef struct {
-    spice_connection *conn;
-} MonitorConfigData;
-
 static gboolean configure_requested_monitors(gpointer user_data)
 {
-    MonitorConfigData *data = user_data;
-    spice_connection *conn = data->conn;
+    spice_connection *conn = user_data;
     GdkDisplay *gdk_display = gdk_display_get_default();
     gint host_monitor_count = gdk_display ? gdk_display_get_n_monitors(gdk_display) : 0;
     gint min_x = G_MAXINT;
     gint min_y = G_MAXINT;
     gint i;
 
-    if (conn->main == NULL || !conn->agent_connected) {
-        g_free(data);
+    conn->monitor_config_timer = 0;
+    if (conn->main == NULL || !conn->agent_connected)
         return G_SOURCE_REMOVE;
-    }
 
     for (i = 0; i < requested_monitors; i++) {
         GdkRectangle geometry = { i * 1920, 0, 1920, 1080 };
@@ -2142,21 +2158,25 @@ static gboolean configure_requested_monitors(gpointer user_data)
     spice_main_channel_send_monitor_config(conn->main);
     conn->monitor_config_sent = TRUE;
 
-    g_free(data);
     return G_SOURCE_REMOVE;
 }
 
 static void schedule_requested_monitor_config(spice_connection *conn)
 {
-    MonitorConfigData *data;
-
     if (conn->main == NULL || !conn->agent_connected ||
-        conn->monitor_config_sent || requested_monitors <= 0)
+        conn->monitor_config_sent || conn->monitor_config_timer != 0 ||
+        requested_monitors <= 0)
         return;
 
-    data = g_new0(MonitorConfigData, 1);
-    data->conn = conn;
-    g_timeout_add(300, configure_requested_monitors, data);
+    conn->monitor_config_timer = g_timeout_add(300, configure_requested_monitors, conn);
+}
+
+/* Нужно ли окно под дисплей: в пределах --monitors и не закрыт пользователем. */
+static gboolean display_wanted(spice_connection *conn, guint display_id)
+{
+    if (display_id >= (guint)requested_monitors)
+        return FALSE;
+    return display_id >= 32 || !(conn->closed_displays & (1u << display_id));
 }
 
 static SpiceWindow* get_window(spice_connection *conn, int channel_id, int monitor_id)
@@ -2164,7 +2184,7 @@ static SpiceWindow* get_window(spice_connection *conn, int channel_id, int monit
     g_return_val_if_fail(channel_id < CHANNELID_MAX, NULL);
     g_return_val_if_fail(monitor_id < MONITORID_MAX, NULL);
 
-    return conn->wins[channel_id * CHANNELID_MAX + monitor_id];
+    return conn->wins[WIN_INDEX(channel_id, monitor_id)];
 }
 
 static void add_window(spice_connection *conn, SpiceWindow *win)
@@ -2172,10 +2192,10 @@ static void add_window(spice_connection *conn, SpiceWindow *win)
     g_return_if_fail(win != NULL);
     g_return_if_fail(win->id < CHANNELID_MAX);
     g_return_if_fail(win->monitor_id < MONITORID_MAX);
-    g_return_if_fail(conn->wins[win->id * CHANNELID_MAX + win->monitor_id] == NULL);
+    g_return_if_fail(conn->wins[WIN_INDEX(win->id, win->monitor_id)] == NULL);
 
     SPICE_DEBUG("add display monitor %d:%d", win->id, win->monitor_id);
-    conn->wins[win->id * CHANNELID_MAX + win->monitor_id] = win;
+    conn->wins[WIN_INDEX(win->id, win->monitor_id)] = win;
 }
 
 static void del_window(spice_connection *conn, SpiceWindow *win)
@@ -2187,20 +2207,34 @@ static void del_window(spice_connection *conn, SpiceWindow *win)
     g_return_if_fail(win->monitor_id < MONITORID_MAX);
 
     g_debug("del display monitor %d:%d", win->id, win->monitor_id);
-    conn->wins[win->id * CHANNELID_MAX + win->monitor_id] = NULL;
-    if (win->id > 0)
-        spice_main_channel_update_display_enabled(conn->main, win->id, FALSE, TRUE);
-    else
-        spice_main_channel_update_display_enabled(conn->main, win->monitor_id, FALSE, TRUE);
-    spice_main_channel_send_monitor_config(conn->main);
+    conn->wins[WIN_INDEX(win->id, win->monitor_id)] = NULL;
+    if (conn->main) {
+        spice_main_channel_update_display_enabled(conn->main,
+            display_id_from_channel_monitor(win->id, win->monitor_id), FALSE, TRUE);
+        if (conn->agent_connected)
+            spice_main_channel_send_monitor_config(conn->main);
+    }
 
     destroy_spice_window(win);
+}
+
+/* Убирает окна канала без запросов к гостевой ОС: канал уже закрыт. */
+static void forget_channel_windows(spice_connection *conn, int channel_id)
+{
+    for (int m = 0; m < MONITORID_MAX; m++) {
+        SpiceWindow *win = get_window(conn, channel_id, m);
+        if (win == NULL)
+            continue;
+        conn->wins[WIN_INDEX(channel_id, m)] = NULL;
+        destroy_spice_window(win);
+    }
 }
 
 static void display_monitors(SpiceChannel *display, GParamSpec *pspec,
                              spice_connection *conn)
 {
     GArray *monitors = NULL;
+    gboolean keep[MONITORID_MAX] = { FALSE, };
     int id;
     guint i;
 
@@ -2209,12 +2243,24 @@ static void display_monitors(SpiceChannel *display, GParamSpec *pspec,
                  "monitors", &monitors,
                  NULL);
     g_return_if_fail(monitors != NULL);
+    if (id < 0 || id >= CHANNELID_MAX) {
+        g_clear_pointer(&monitors, g_array_unref);
+        return;
+    }
 
+    /* Окна сопоставляются по номеру монитора (mc->id), а не по позиции в
+     * списке: если гостевая ОС выключила средний монитор, позиции сдвигаются,
+     * и окно показывало бы не тот монитор, а лишнее оставалось бы открытым. */
     for (i = 0; i < monitors->len; i++) {
+        SpiceDisplayMonitorConfig *mc = &g_array_index(monitors, SpiceDisplayMonitorConfig, i);
         SpiceWindow *w;
 
-        if (!get_window(conn, id, i)) {
-            w = create_spice_window(conn, display, id, i);
+        if (mc->id >= MONITORID_MAX ||
+            !display_wanted(conn, display_id_from_channel_monitor(id, mc->id)))
+            continue;
+        keep[mc->id] = TRUE;
+        if (!get_window(conn, id, mc->id)) {
+            w = create_spice_window(conn, display, id, mc->id);
             add_window(conn, w);
             spice_g_signal_connect_object(display, "display-mark",
                                           G_CALLBACK(display_mark), w, 0);
@@ -2223,8 +2269,12 @@ static void display_monitors(SpiceChannel *display, GParamSpec *pspec,
         }
     }
 
-    for (; i < MONITORID_MAX; i++)
-        del_window(conn, get_window(conn, id, i));
+    /* Остальные окна закрываются, а их дисплеи выключаются у гостевой ОС: так
+     * мониторы сверх --monitors, оставшиеся от прошлого сеанса, не появляются. */
+    for (i = 0; i < MONITORID_MAX; i++) {
+        if (!keep[i])
+            del_window(conn, get_window(conn, id, i));
+    }
 
     g_clear_pointer(&monitors, g_array_unref);
 }
@@ -2497,9 +2547,7 @@ static void channel_new(SpiceSession *s, SpiceChannel *channel, gpointer data)
     }
 
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        if (id >= SPICE_N_ELEMENTS(conn->wins))
-            return;
-        if (conn->wins[id] != NULL)
+        if (id >= CHANNELID_MAX)
             return;
         SPICE_DEBUG("new display channel (#%d)", id);
         g_signal_connect(channel, "notify::monitors",
@@ -2543,10 +2591,10 @@ static void channel_destroy(SpiceSession *s, SpiceChannel *channel, gpointer dat
     }
 
     if (SPICE_IS_DISPLAY_CHANNEL(channel)) {
-        if (id >= SPICE_N_ELEMENTS(conn->wins))
+        if (id >= CHANNELID_MAX)
             return;
         SPICE_DEBUG("zap display channel (#%d)", id);
-        /* FIXME destroy widget only */
+        forget_channel_windows(conn, id);
     }
 
     if (SPICE_IS_PLAYBACK_CHANNEL(channel)) {
@@ -3323,8 +3371,11 @@ static void connection_disconnect(spice_connection *conn)
 static void connection_destroy(SpiceSession *session,
                                spice_connection *conn)
 {
+    if (conn->monitor_config_timer != 0)
+        g_source_remove(conn->monitor_config_timer);
     for (int i = 0; i < SPICE_N_ELEMENTS(conn->wins); i++) {
         destroy_spice_window(conn->wins[i]);
+        conn->wins[i] = NULL;
     }
     g_object_unref(conn->session);
     g_hash_table_unref(conn->transfers);
