@@ -19,8 +19,8 @@ env:
 
 jobs:
   build-pkg:
-    name: Build macOS 14+ PKG with SPICE
-    runs-on: macos-14
+    name: Build macOS 15+ PKG with SPICE
+    runs-on: macos-15
     timeout-minutes: 90
 
     steps:
